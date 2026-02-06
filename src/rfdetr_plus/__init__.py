@@ -3,6 +3,22 @@
 # Copyright (c) 2026 Roboflow, Inc. All Rights Reserved.
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
-"""RF-DETR+ extension package."""
+"""RF-DETR+ extension package.
+
+Platform-licensed large-scale detection models (XLarge and 2XLarge)
+for the RF-DETR family.
+"""
+
+from rfdetr_plus.models.detection import RFDETR2XLarge, RFDETRXLarge
 
 __version__ = "0.0.0.dev0"
+__author__ = "Roboflow, Inc"
+__author_email__ = "peter@roboflow.com"
+__license__ = "PML-1.0"
+__url__ = "https://github.com/roboflow/rf-detr-plus"
+__docs__ = "https://rfdetr.roboflow.com"
+
+__all__ = [
+    "RFDETRXLarge",
+    "RFDETR2XLarge",
+]
