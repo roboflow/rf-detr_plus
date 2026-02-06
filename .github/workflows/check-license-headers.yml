@@ -1,0 +1,63 @@
+name: Check License Headers
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: license-check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check-headers:
+    name: Validate License Headers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Check license headers
+        run: |
+          FAILED_FILES=()
+
+          # PML-1.0 header pattern for RF-DETR+
+          PML_LINE1="# RF-DETR+"
+          PML_LINE2="# Copyright (c) 2026 Roboflow, Inc. All Rights Reserved."
+
+          while IFS= read -r -d '' file; do
+            # Read first 15 lines of the file
+            HEADER=$(head -n 15 "$file")
+
+            # Check for RF-DETR+ PML header
+            if echo "$HEADER" | grep -q "$PML_LINE1" && \
+               echo "$HEADER" | grep -q "$PML_LINE2"; then
+              continue
+            fi
+
+            # File doesn't have a valid header
+            FAILED_FILES+=("$file")
+          done < <(find . -name "*.py" -type f ! -path "./.venv/*" ! -path "./venv/*" ! -path "./.git/*" -print0)
+
+          if [ ${#FAILED_FILES[@]} -gt 0 ]; then
+            echo "The following files are missing valid license headers:"
+            echo ""
+            for file in "${FAILED_FILES[@]}"; do
+              echo "  - $file"
+            done
+            echo ""
+            echo "Each Python file must start with the following header:"
+            echo ""
+            echo "   # ------------------------------------------------------------------------"
+            echo "   # RF-DETR+"
+            echo "   # Copyright (c) 2026 Roboflow, Inc. All Rights Reserved."
+            echo "   # Licensed under the Platform Model License 1.0 [see LICENSE for details]"
+            echo "   # ------------------------------------------------------------------------"
+            exit 1
+          fi
+
+          echo "All Python files have valid license headers."

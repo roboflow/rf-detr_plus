@@ -1,75 +1,117 @@
 [build-system]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
-requires = [ "setuptools>=61" ]
 
 [project]
-name = "sandbox-template"
-description = "Roboflow Python Sandbox Template"
+name = "rfdetr-plus"
+version = "0.0.0.dev0"
+description = "RF-DETR+ Extension Package"
 readme = "README.md"
-license = "MIT"
 authors = [
-  { name = "Roboflow", email = "develop@roboflow.com" },
+    {name = "Roboflow, Inc", email = "peter@roboflow.com"}
 ]
-requires-python = ">=3.9"
+license = "LicenseRef-PML-1.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
 classifiers = [
-  "Operating System :: OS Independent",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS"
 ]
-dynamic = [ "version" ]
-dependencies = [  ]
+keywords = ["machine-learning", "deep-learning", "vision", "ML", "DL", "AI", "DETR", "RF-DETR", "Roboflow"]
 
-urls."Homepage" = "https://roboflow.com"
+dependencies = [
+    "rfdetr",
+]
+
+[project.optional-dependencies]
 
 [dependency-groups]
-dev = [
-  "pre-commit",
-  "pytest",
-  "twine",
-  "wheel",
+build = [
+    "twine>=5.1.1",
+    "wheel>=0.40",
+    "build>=0.10"
 ]
+
+tests = [
+  "pytest>=7.2.2,<9",
+  "pytest-cov>=4,<8",
+]
+
+docs = [
+    "mkdocs-material[imaging]>=9.7",
+    "mkdocstrings>=0.25.2,<0.30.0",
+    "mkdocstrings-python>=1.10.9",
+    "mike>=2.0.0",
+    "mkdocs-jupyter>=0.24.3",
+    "mkdocs-git-committers-plugin-2>=2.4.1; python_version >= '3.8' and python_version < '4'",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.4"
+]
+
+dev = [
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/roboflow/rf-detr-plus"
 
 [tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.dynamic]
-version = { attr = "sandbox.__version__" }
+package-dir = {"" = "src"}
+include-package-data = false
 
 [tool.setuptools.packages.find]
-where = [ "src" ]
+where = ["src"]
+include = ["rfdetr_plus*"]
+
+[tool.setuptools.package-data]
+rfdetr_plus = ["py.typed"]
 
 [tool.ruff]
-target-version = "py39"
-
 line-length = 120
-format.indent-style = "space"
-format.quote-style = "double"
-lint.select = [
-  "B",   # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
-  "D",   # pydocstyle - https://docs.astral.sh/ruff/rules/#pydocstyle-d
-  "E",   # pycodestyle errors - https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
-  "F",   # pyflakes - https://docs.astral.sh/ruff/rules/#pyflakes-f
-  "I",   # isort - https://docs.astral.sh/ruff/rules/#isort-i
-  "N",   # pep8-naming - https://docs.astral.sh/ruff/rules/#pep8-naming-n
-  "SIM", # flake8-simplify - https://docs.astral.sh/ruff/rules/#flake8-simplify-sim
-  "UP",  # pyupgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
-  "W",   # pycodestyle warnings - https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
 ]
-lint.isort.known-first-party = [ "sandbox" ]
+extend-select = [
+    "I",  # isort
+]
+ignore = [
+    "E501",  # line too long
+    "E722",  # do not use bare `except`
+    "E741",  # ambiguous variable name
+    "F401",  # imported but unused
+    "F403",  # `from ... import *` used
+    "F405",  # may be undefined from star imports
+    "E721",  # use `is` for type comparisons
+    "F821",  # undefined name
+]
 
 [tool.pytest.ini_options]
 addopts = [
-  "--color=yes",
-  "--doctest-modules",
+    "-v",                   # verbose output
+    "--color=yes",          # colored output
+]
+markers = [
+    "gpu: tests that require GPU or are slow on CPU",
 ]
 
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+[tool.codespell]
+skip = "*.pth"

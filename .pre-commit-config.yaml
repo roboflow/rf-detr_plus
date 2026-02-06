@@ -1,62 +1,45 @@
-# .pre-commit-config.yaml
-#
-# Pre-commit configuration for:
-# - Local git hooks: `pre-commit install` & `pre-commit run --all-files`
-# - pre-commit.ci bot: PR checks, auto hook updates, etc.
-#
-# Docs: https://pre-commit.ci/
-#
 ci:
-  autoupdate_schedule: monthly  # Monthly bot PRs to update hook revs
-  submodules: true  # Include git submodules in checks
-  autofix_commit_msg: |
-    [pre-commit.ci] auto fixes from pre-commit.com hooks
-    for more information, see https://pre-commit.ci  # Custom commit message for bot autofixes
-  skip: [~draft, ~WIP]  # Skip bot on PRs with these labels (regex prefix match)
+  autofix_prs: true
+  autoupdate_schedule: weekly
+  autofix_commit_msg: "fix(pre-commit): auto format pre-commit hooks"
+  autoupdate_commit_msg: "chore(pre-commit): pre_commit autoupdate"
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    # Basic file checks/fixes: whitespace, EOF, YAML/TOML validation, large files, security, symlinks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-      - id: end-of-file-fixer
       - id: check-yaml
+      - id: check-executables-have-shebangs
       - id: check-toml
+      - id: check-case-conflict
       - id: check-added-large-files
-      - id: check-ast
-      - id: check-docstring-first
       - id: detect-private-key
-      - id: check-symlinks
+      - id: pretty-format-json
+        args: ['--autofix', '--no-sort-keys', '--indent=4']
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Python linter (ruff --fix) & formatter (ruff-format)
-    rev: v0.14.10
+    rev: v0.14.14
     hooks:
-      - id: ruff
-        args: [ --fix ]
-      - id: ruff-format
-  - repo: https://github.com/hukkin/mdformat
-    # Markdown formatter (mdformat)
+      - id: ruff-check
+        args: [--fix]
+      #- id: ruff-format
+      #  types_or: [ python, pyi, jupyter ]
+
+  - repo: https://github.com/executablebooks/mdformat
     rev: 1.0.0
     hooks:
       - id: mdformat
-  - repo: https://github.com/abravalheri/validate-pyproject
-    # Validate pyproject.toml schema/content
-    rev: v0.23
-    hooks:
-      - id: validate-pyproject
-  - repo: https://github.com/tox-dev/pyproject-fmt
-    # Format pyproject.toml
-    rev: v2.9.0
-    hooks:
-      - id: pyproject-fmt
+        additional_dependencies:
+          - "mdformat-mkdocs[recommended]>=2.1.0"
+          - "mdformat-ruff"
+        args: ["--number"]
+
   - repo: https://github.com/codespell-project/codespell
-    # Spell checker for code, comments, docs
     rev: v2.4.1
     hooks:
       - id: codespell
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    # Static type checker
-    rev: v1.14.1
-    hooks:
-      - id: mypy
+        additional_dependencies:
+          - tomli
