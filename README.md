@@ -34,21 +34,21 @@ pip install git+https://github.com/roboflow/rf-detr-plus.git
 
 RF-DETR+ XLarge and 2XLarge sit at the top of the RF-DETR accuracy/latency curve, delivering the highest COCO AP scores in the family. All latency numbers were measured on an NVIDIA T4 using TensorRT, FP16, and batch size 1.
 
-| Size | Class | COCO AP<sub>50</sub> | COCO AP<sub>50:95</sub> | RF100VL AP<sub>50</sub> | RF100VL AP<sub>50:95</sub> | Latency (ms) | Params (M) | Resolution |                      Package / License                       |
-| :--: | :-----------------: | :------------------: | :---------------------: | :---------------------: | :------------------------: | :----------: | :--------: | :--------: |:------------------------------------------------------------:|
-|  N   |    `RFDETRNano`     |         67.6         |          48.4           |          85.0           |            57.7            |     2.3      |    30.5    |  384x384   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
-|  S   |    `RFDETRSmall`    |         72.1         |          53.0           |          86.7           |            60.2            |     3.5      |    32.1    |  512x512   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
-|  M   |   `RFDETRMedium`    |         73.6         |          54.7           |          87.4           |            61.2            |     4.4      |    33.7    |  576x576   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
-|  L   |    `RFDETRLarge`    |         75.1         |          56.5           |          88.2           |            62.2            |     6.8      |    33.9    |  704x704   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
-|  XL  |   `RFDETRXLarge`    |         77.4         |          58.6           |          88.5           |            62.9            |     11.5     |   126.4    |  700x700   |              `rfdetr_plus` / [PML 1.0](LICENSE)              |
-| 2XL  |   `RFDETR2XLarge`   |         78.5         |          60.1           |          89.0           |            63.2            |     17.2     |   126.9    |  880x880   |             `rfdetr_plus` / [PML 1.0](LICENSE)              |
+|  Size  |      Class      | COCO AP<sub>50</sub> | COCO AP<sub>50:95</sub> | RF100VL AP<sub>50</sub> | RF100VL AP<sub>50:95</sub> | Latency (ms) | Params (M) | Resolution |                      Package / License                       |
+| :----: | :-------------: | :------------------: | :---------------------: | :---------------------: | :------------------------: | :----------: | :--------: | :--------: | :----------------------------------------------------------: |
+|   N    |  `RFDETRNano`   |         67.6         |          48.4           |          85.0           |            57.7            |     2.3      |    30.5    |  384x384   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
+|   S    |  `RFDETRSmall`  |         72.1         |          53.0           |          86.7           |            60.2            |     3.5      |    32.1    |  512x512   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
+|   M    | `RFDETRMedium`  |         73.6         |          54.7           |          87.4           |            61.2            |     4.4      |    33.7    |  576x576   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
+|   L    |  `RFDETRLarge`  |         75.1         |          56.5           |          88.2           |            62.2            |     6.8      |    33.9    |  704x704   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
+| ⭐ XL  | `RFDETRXLarge`  |         77.4         |          58.6           |          88.5           |            62.9            |     11.5     |   126.4    |  700x700   |              `rfdetr_plus` / [PML 1.0](LICENSE)              |
+| ⭐ 2XL | `RFDETR2XLarge` |         78.5         |          60.1           |          89.0           |            63.2            |     17.2     |   126.9    |  880x880   |              `rfdetr_plus` / [PML 1.0](LICENSE)              |
 
 ## Run Models
 
 Install with the `plus` extra to get XL and 2XL models alongside core RF-DETR:
 
 ```bash
-pip install rfdetr[plus]
+pip install rfdetr_plus
 ```
 
 RF-DETR+ models require you to accept the Platform Model License before use. Once accepted, usage mirrors the standard RF-DETR API -- you import directly from `rfdetr`:

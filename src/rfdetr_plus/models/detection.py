@@ -1,12 +1,7 @@
 # ------------------------------------------------------------------------
-# Platform Model License 1.0 (PML-1.0)
+# RF-DETR+
 # Copyright (c) 2026 Roboflow, Inc. All Rights Reserved.
-#
-# Licensed under the Platform Model License 1.0.
-# Use, modification, and distribution of code and checkpoints require
-# an active Roboflow platform plan or agreement.
-#
-# See the LICENSE.platform file for full terms and conditions.
+# Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 
 from typing import Any, Literal

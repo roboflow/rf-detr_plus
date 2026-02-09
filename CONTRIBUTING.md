@@ -5,33 +5,36 @@ Thank you for helping to advance RF-DETR+! Your participation is invaluable in e
 ## Table of Contents
 
 1. [How to Contribute](#how-to-contribute)
-1. [CLA Signing](#cla-signing)
-1. [Google-Style Docstrings and Mandatory Type Hints](#google-style-docstrings-and-mandatory-type-hints)
-1. [Reporting Bugs](#reporting-bugs)
-1. [License](#license)
+2. [CLA Signing](#cla-signing)
+3. [Google-Style Docstrings and Mandatory Type Hints](#google-style-docstrings-and-mandatory-type-hints)
+4. [Reporting Bugs](#reporting-bugs)
+5. [License](#license)
 
 ## How to Contribute
 
 Your contributions can be in many forms -- whether it's enhancing existing features, improving documentation, resolving bugs, or proposing new ideas. Here's a high-level overview to get you started:
 
 1. [Fork the Repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo): Click the "Fork" button on our GitHub page to create your own copy.
-1. [Clone Locally](https://docs.github.com/en/enterprise-server@3.11/repositories/creating-and-managing-repositories/cloning-a-repository): Download your fork to your local development environment.
-1. [Create a Branch](https://docs.github.com/en/desktop/making-changes-in-a-branch/managing-branches-in-github-desktop): Use a descriptive name to create a new branch (e.g., `feature/your-descriptive-name`):
 
-   ```bash
-   git checkout -b feature/your-descriptive-name
-   ```
+2. [Clone Locally](https://docs.github.com/en/enterprise-server@3.11/repositories/creating-and-managing-repositories/cloning-a-repository): Download your fork to your local development environment.
 
-1. Develop Your Changes: Make your updates, ensuring your commit messages clearly describe your modifications.
-1. [Commit and Push](https://docs.github.com/en/desktop/making-changes-in-a-branch/committing-and-reviewing-changes-to-your-project-in-github-desktop): Run:
+3. [Create a Branch](https://docs.github.com/en/desktop/making-changes-in-a-branch/managing-branches-in-github-desktop): Use a descriptive name to create a new branch (e.g., `feature/your-descriptive-name`):
 
-   ```bash
-   git add .
-   git commit -m "A brief description of your changes"
-   git push -u origin your-descriptive-name
-   ```
+    ```bash
+    git checkout -b feature/your-descriptive-name
+    ```
 
-1. [Open a Pull Request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request): Submit your pull request against the main development branch. Please detail your changes and link any related issues.
+4. Develop Your Changes: Make your updates, ensuring your commit messages clearly describe your modifications.
+
+5. [Commit and Push](https://docs.github.com/en/desktop/making-changes-in-a-branch/committing-and-reviewing-changes-to-your-project-in-github-desktop): Run:
+
+    ```bash
+    git add .
+    git commit -m "A brief description of your changes"
+    git push -u origin your-descriptive-name
+    ```
+
+6. [Open a Pull Request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request): Submit your pull request against the main development branch. Please detail your changes and link any related issues.
 
 Before merging, check that all tests pass and that your changes adhere to our development and documentation standards.
 
