@@ -9,6 +9,7 @@ Thank you for helping to advance RF-DETR+! Your participation is invaluable in e
 3. [Google-Style Docstrings and Mandatory Type Hints](#google-style-docstrings-and-mandatory-type-hints)
 4. [Reporting Bugs](#reporting-bugs)
 5. [License](#license)
+6. [License Headers](#license-headers)
 
 ## How to Contribute
 
@@ -82,3 +83,15 @@ Bug reports are vital for continued improvement. When reporting an issue, please
 By contributing to RF-DETR+, you agree that your contributions will be licensed under the Platform Model License 1.0 as specified in our [LICENSE](/LICENSE) file.
 
 Thank you for your commitment to making RF-DETR+ better. We look forward to your pull requests and continued collaboration. Happy coding!
+
+## License Headers
+
+All Python files must start with the following header:
+
+```python
+# ------------------------------------------------------------------------
+# RF-DETR+
+# Copyright (c) 2026 Roboflow, Inc. All Rights Reserved.
+# Licensed under the Platform Model License 1.0 [see LICENSE for details]
+# ------------------------------------------------------------------------
+```
