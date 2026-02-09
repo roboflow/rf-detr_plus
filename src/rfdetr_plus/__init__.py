@@ -19,6 +19,6 @@ __docs__ = "https://rfdetr.roboflow.com"
 from rfdetr_plus.models import RFDETR2XLarge, RFDETRXLarge
 
 __all__ = [
-    "RFDETRXLarge",
     "RFDETR2XLarge",
+    "RFDETRXLarge",
 ]

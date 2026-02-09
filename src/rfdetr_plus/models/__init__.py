@@ -8,8 +8,8 @@
 from rfdetr_plus.models.detection import RFDETR2XLarge, RFDETR2XLargeConfig, RFDETRXLarge, RFDETRXLargeConfig
 
 __all__ = [
-    "RFDETRXLarge",
-    "RFDETRXLargeConfig",
     "RFDETR2XLarge",
     "RFDETR2XLargeConfig",
+    "RFDETRXLarge",
+    "RFDETRXLargeConfig",
 ]
