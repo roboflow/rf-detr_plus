@@ -83,17 +83,13 @@ select = [
     "F",  # pyflakes
 ]
 extend-select = [
-    "I",  # isort
-]
-ignore = [
-    "E501",  # line too long
-    "E722",  # do not use bare `except`
-    "E741",  # ambiguous variable name
-    "F401",  # imported but unused
-    "F403",  # `from ... import *` used
-    "F405",  # may be undefined from star imports
-    "E721",  # use `is` for type comparisons
-    "F821",  # undefined name
+  "A",   # flake8-builtins - https://docs.astral.sh/ruff/rules/#flake8-builtins-a
+  "I",   # isort - https://docs.astral.sh/ruff/rules/#isort-i
+  "PT",  # pytest - https://docs.astral.sh/ruff/rules/#flake8-pytest-style-pt
+  "Q",   # flake8-quotes - https://docs.astral.sh/ruff/rules/#flake8-quotes-q
+  "RUF", # Ruff-specific rules - https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
+  "S",   # bandit - https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+  "UP",  # pyupgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
 ]
 
 [tool.pytest.ini_options]
