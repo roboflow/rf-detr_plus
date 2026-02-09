@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "RF-DETR+ Extension Package"
 readme = "README.md"
 authors = [
-    {name = "Roboflow, Inc", email = "peter@roboflow.com"}
+    {name = "Roboflow, Inc", email = "develop@roboflow.com"}
 ]
 license = "LicenseRef-PML-1.0"
 license-files = ["LICENSE"]

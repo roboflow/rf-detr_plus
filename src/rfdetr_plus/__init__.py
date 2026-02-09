@@ -11,9 +11,9 @@ for the RF-DETR family.
 
 __version__ = "0.0.1"
 __author__ = "Roboflow, Inc"
-__author_email__ = "peter@roboflow.com"
+__author_email__ = "develop@roboflow.com"
 __license__ = "PML-1.0"
-__url__ = "https://github.com/roboflow/rf-detr-plus"
+__url__ = "https://github.com/roboflow/rf-detr_plus"
 __docs__ = "https://rfdetr.roboflow.com"
 
 from rfdetr_plus.models import RFDETR2XLarge, RFDETRXLarge
