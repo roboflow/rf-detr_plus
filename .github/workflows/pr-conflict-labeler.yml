@@ -2,7 +2,7 @@ name: PR Conflict Labeler
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request_target:
     types: [synchronize]
 

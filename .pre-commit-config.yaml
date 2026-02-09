@@ -4,6 +4,9 @@ ci:
   autofix_commit_msg: "fix[pre-commit]: auto format pre-commit hooks"
   autoupdate_commit_msg: "chore[pre-commit]: pre_commit autoupdate"
 
+default_language_version:
+  python: python3.10
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -16,9 +19,17 @@ repos:
       - id: check-added-large-files
       - id: detect-private-key
       - id: pretty-format-json
-        args: ['--autofix', '--no-sort-keys', '--indent=4']
+        args: ["--autofix", "--no-sort-keys", "--indent=4"]
       - id: end-of-file-fixer
       - id: mixed-line-ending
+
+  - repo: https://github.com/JoC0de/pre-commit-prettier
+    rev: v3.8.1 # using tag; previously pinned SHA when tags were not persistent
+    hooks:
+      - id: prettier
+        files: \.(html|yml|yaml|toml)
+        # https://prettier.io/docs/en/options.html#print-width
+        args: ["--print-width=120"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.14
