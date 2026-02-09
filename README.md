@@ -7,13 +7,13 @@
 
 [![discord](https://img.shields.io/discord/1159501506232451173?logo=discord&label=discord&labelColor=fff&color=5865f2&link=https%3A%2F%2Fdiscord.gg%2FGbfgXGJ8Bk)](https://discord.gg/GbfgXGJ8Bk)
 
-RF-DETR+ is the extension package for [RF-DETR](https://github.com/roboflow/rf-detr) that provides the **XLarge** and **2XLarge** detection models. These are the largest and most accurate models in the RF-DETR family, pushing state-of-the-art accuracy on [Microsoft COCO](https://cocodataset.org/#home) and [RF100-VL](https://github.com/roboflow/rf100-vl) while retaining real-time inference speeds.
+RF-DETR is the core package in the ecosystem. It provides the full training and inference stack, the {Nano, Small, Medium, Large} model lineup, and the APIs most users build on. RF-DETR+ is an extension package for [RF-DETR](https://github.com/roboflow/rf-detr) that adds the **XLarge** and **2XLarge** detection models for maximum accuracy.
 
-RF-DETR+ models use a DINOv2 vision transformer backbone at higher resolutions and larger feature dimensions than the core RF-DETR lineup, unlocking top-tier detection accuracy for applications where precision matters most.
+RF-DETR+ models use a DINOv2 vision transformer backbone at higher resolutions and larger feature dimensions than the core RF-DETR lineup, pushing state-of-the-art accuracy on [Microsoft COCO](https://cocodataset.org/#home) and [RF100-VL](https://github.com/roboflow/rf100-vl) while retaining real-time inference speeds. Use RF-DETR for the standard model set and RF-DETR+ when you need the highest-accuracy variants.
 
 ## Install
 
-Install RF-DETR+ in a [**Python>=3.10**](https://www.python.org/) environment with `pip`. This will also install [`rfdetr`](https://github.com/roboflow/rf-detr) as a dependency.
+Install RF-DETR+ in a [**Python>=3.10**](https://www.python.org/) environment with `pip`. This will also install [`rfdetr`](https://github.com/roboflow/rf-detr) as a dependency, which provides the core APIs and model definitions.
 
 ```bash
 pip install rfdetr-plus
@@ -45,19 +45,19 @@ RF-DETR+ XLarge and 2XLarge sit at the top of the RF-DETR accuracy/latency curve
 
 ## Run Models
 
-Install with the `plus` extra to get XL and 2XL models alongside core RF-DETR:
+Install RF-DETR+ to use XL and 2XL models alongside the core RF-DETR lineup:
 
 ```bash
 pip install rfdetr_plus
 ```
 
-RF-DETR+ models require you to accept the Platform Model License before use. Once accepted, usage mirrors the standard RF-DETR API -- you import directly from `rfdetr`:
+RF-DETR+ models require you to accept the Platform Model License before use. Once accepted, usage mirrors the standard RF-DETR API -- you import the models from `rfdetr_plus` and keep using the `rfdetr` utilities:
 
 ```python
 import requests
 import supervision as sv
 from PIL import Image
-from rfdetr import RFDETRXLarge
+from rfdetr_plus import RFDETRXLarge
 from rfdetr.util.coco_classes import COCO_CLASSES
 
 model = RFDETRXLarge(accept_platform_model_license=True)
@@ -76,7 +76,7 @@ annotated_image = sv.LabelAnnotator().annotate(annotated_image, detections, labe
 RF-DETR+ models support fine-tuning with the same training API as core RF-DETR. You can train on your own dataset or use datasets from [Roboflow Universe](https://universe.roboflow.com/).
 
 ```python
-from rfdetr import RFDETRXLarge
+from rfdetr_plus import RFDETRXLarge
 
 model = RFDETRXLarge(accept_platform_model_license=True)
 model.train(dataset_dir="path/to/dataset", epochs=50, lr=1e-4)
