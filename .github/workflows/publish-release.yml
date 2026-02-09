@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       id-token: write
+      contents: write  # Add this line
     steps:
       - name: Download distribution artifacts
         uses: actions/download-artifact@v4
@@ -36,15 +37,15 @@ jobs:
       - name: Display distribution files
         run: ls -lh dist/
 
+      - name: Publish to PyPi
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          attestations: true
+
       - name: Upload assets to GitHub Release
         if: github.event_name == 'release'
         uses: AButler/upload-release-assets@v3.0
         with:
           files: 'dist/*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to PyPi
-        if: (github.event_name == 'release' && github.event.release.prerelease != true) || github.event_name == 'workflow_dispatch'
-        uses: pypa/gh-action-pypi-publish@v1.13.0
-        with:
-          attestations: true
