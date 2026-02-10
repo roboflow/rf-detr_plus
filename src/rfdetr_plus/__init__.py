@@ -9,7 +9,7 @@ Platform-licensed large-scale detection models (XLarge and 2XLarge)
 for the RF-DETR family.
 """
 
-__version__ = "0.0.1"
+__version__ = "1.0.0"
 __author__ = "Roboflow, Inc"
 __author_email__ = "develop@roboflow.com"
 __license__ = "PML-1.0"
