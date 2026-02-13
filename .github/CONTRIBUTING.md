@@ -137,9 +137,11 @@ uv sync --group dev        # Development tools (pre-commit)
 RF-DETR+ extends the base RF-DETR package with additional model variants.
 
 **Core dependency:**
+
 - `rfdetr>=1.4.1,<2` - Base RF-DETR package
 
 **Development groups:**
+
 - `tests` - pytest, pytest-cov
 - `build` - twine, wheel, build
 - `dev` - pre-commit
