@@ -76,7 +76,7 @@ def test_coco_detection_inference_benchmark(
     )
     val_dataset = CocoDetection(images_root, annotations_path, transforms=transforms)
     if num_samples is not None:
-        val_dataset = torch.utils.data.Subset(val_dataset, list(range(min(num_samples, len(val_dataset)))))
+        val_dataset = torch.utils.data.Subset(val_dataset, range(min(num_samples, len(val_dataset))))
     import os
 
     data_loader = torch.utils.data.DataLoader(
