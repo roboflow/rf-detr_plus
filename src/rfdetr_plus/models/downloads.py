@@ -4,7 +4,15 @@
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 
-PLATFORM_MODELS = {
-    "rf-detr-xlarge.pth": "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-xlarge.pth",
-    "rf-detr-xxlarge.pth": "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-xxlarge.pth",
-}
+"""
+Legacy model downloads dictionary.
+
+DEPRECATED: Use rfdetr_plus.assets.ModelWeights instead.
+This dictionary is maintained for backward compatibility only.
+"""
+
+from rfdetr_plus.assets import ModelWeights
+
+# Legacy dictionary for backward compatibility
+# New code should use rfdetr_plus.assets.ModelWeights
+PLATFORM_MODELS = {asset.filename: asset.url for asset in ModelWeights}
