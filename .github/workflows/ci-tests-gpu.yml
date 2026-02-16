@@ -1,4 +1,4 @@
-name: GPU tests Workflow
+name: Pytest/GPU Workflow
 
 on:
   push:
