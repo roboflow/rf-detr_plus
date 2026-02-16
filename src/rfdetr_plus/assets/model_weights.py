@@ -39,12 +39,12 @@ class ModelWeights(ModelWeightsBase):
     RF_DETR_XLARGE = ModelWeightAsset(
         "rf-detr-xlarge.pth",
         "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-xlarge.pth",
-        None,  # MD5 hash to be added when available
+        "6ddf834f2bc5bed3214a82f9b0aaeed7",
     )
     RF_DETR_XXLARGE = ModelWeightAsset(
         "rf-detr-xxlarge.pth",
         "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-xxlarge.pth",
-        None,  # MD5 hash to be added when available
+        "e3204689c1f0280427e4c33e6a2ac6cd",
     )
 
     # All methods inherited from ModelWeightsBase:
