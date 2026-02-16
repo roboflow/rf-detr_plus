@@ -11,7 +11,6 @@ import pytest
 from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
 
 
-@pytest.mark.gpu
 @pytest.mark.parametrize(
     ("model_class", "resolution"),
     [
