@@ -36,6 +36,29 @@ def test_coco_detection_inference_benchmark(
     threshold_f1: float,
     num_samples: int | None,
 ) -> None:
+    """Benchmark COCO detection inference for RF-DETR+ XLarge and 2XLarge models.
+
+    This GPU-marked test runs inference on the COCO val2017 split using the
+    specified RF-DETR+ detection model, computes COCO metrics via the base
+    RF-DETR evaluation pipeline, and asserts that the achieved mAP@50 and F1
+    scores meet or exceed the provided minimum thresholds. Evaluation statistics
+    are also written to a JSON file to assist with debugging benchmark runs.
+
+    Args:
+        request: Pytest request object, used to access the parametrized test ID.
+        download_coco_val: Tuple of (images_root, annotations_path) for COCO
+            val2017 data.
+        model_cls: RF-DETR model class to benchmark (e.g., RFDETRXLarge,
+            RFDETR2XLarge).
+        threshold_map: Minimum acceptable mAP@50 value for the benchmark.
+        threshold_f1: Minimum acceptable F1 score for the benchmark.
+        num_samples: Optional number of validation samples to evaluate; if None,
+            evaluates on the full validation set.
+
+    Returns:
+        None. Raises an assertion error if the model fails to meet the accuracy
+        thresholds.
+    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     images_root, annotations_path = download_coco_val
 
