@@ -10,7 +10,7 @@ RF-DETR+ is an extension package providing XLarge and 2XLarge model variants for
 **Project Type:** Python ML extension package (computer vision)
 **Python:** >=3.10 (3.10, 3.11, 3.12, 3.13)
 **License:** Platform Model License (PML) 1.0
-**Dependency:** Requires `rfdetr>=1.4.1,<2` base package
+**Dependency:** Requires `rfdetr>=1.5.0,<2` base package
 
 > [!TIP]
 >
@@ -52,7 +52,7 @@ pre-commit run --all-files
 
 - `src/rfdetr_plus/` - XLarge and 2XLarge model implementations
 - `tests/` - Test suite
-- Depends on base `rfdetr` package (>=1.4.1) for all core functionality
+- Depends on base `rfdetr` package (>=1.5.0) for all core functionality
 
 **Imports:**
 

@@ -76,7 +76,7 @@ rf-detr_plus/
 - **`src/rfdetr_plus/`** - All source code for the RF-DETR+ package
 
     - Contains extended model implementations (XLarge, 2XLarge variants)
-    - Depends on the base `rfdetr` package (>=1.4.1)
+    - Depends on the base `rfdetr` package (>=1.5.0)
 
 - **`tests/`** - Test suite
 
@@ -138,7 +138,7 @@ RF-DETR+ extends the base RF-DETR package with additional model variants.
 
 **Core dependency:**
 
-- `rfdetr>=1.4.1,<2` - Base RF-DETR package
+- `rfdetr>=1.5.0,<2` - Base RF-DETR package
 
 **Development groups:**
 
@@ -356,7 +356,7 @@ RF-DETR+ is an extension package that provides additional model variants:
 
 - Extends the base `rfdetr` package
 - Provides XLarge and 2XLarge model variants
-- Depends on `rfdetr>=1.4.1,<2` for all core functionality
+- Depends on `rfdetr>=1.5.0,<2` for all core functionality
 - Licensed under Platform Model License (PML) 1.0
 
 ### Model Architecture

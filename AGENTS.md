@@ -68,7 +68,7 @@ uv sync --all-groups
 
 See `pyproject.toml` for complete dependency specifications:
 
-- **Core:** `rfdetr>=1.4.1,<2` (Base RF-DETR package with all core dependencies)
+- **Core:** `rfdetr>=1.5.0,<2` (Base RF-DETR package with all core dependencies)
 - **Development:** `tests`, `build`, `dev` groups
 
 **Important:** RF-DETR+ is an extension package that depends on the base `rfdetr` package. All core model architecture, training logic, and utilities come from `rfdetr`.
