@@ -50,6 +50,7 @@ class RFDETRXLarge(RFDETR):
     size: Literal["rfdetr-xlarge"] = "rfdetr-xlarge"
 
     def __init__(self, **kwargs: Any) -> None:
+        kwargs.pop("accept_platform_model_license", None)
         super().__init__(**kwargs)
 
     def get_model_config(self, **kwargs: Any) -> RFDETRXLargeConfig:
@@ -63,6 +64,7 @@ class RFDETR2XLarge(RFDETR):
     size: Literal["rfdetr-2xlarge"] = "rfdetr-2xlarge"
 
     def __init__(self, **kwargs: Any) -> None:
+        kwargs.pop("accept_platform_model_license", None)
         super().__init__(**kwargs)
 
     def get_model_config(self, **kwargs: Any) -> RFDETR2XLargeConfig:
