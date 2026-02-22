@@ -42,7 +42,7 @@ jobs:
           activate-environment: true
 
       - name: 🚀 Install Packages
-        run: uv sync --group tests --extra onnxexport --extra plus
+        run: uv sync --group tests
 
       - name: 🧪 Run the Test
         run: |
