@@ -35,22 +35,22 @@ jobs:
           - { os: "macos-latest", python-version: "3.13" }
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout the repository
+      - name: 📥 Checkout the repository
         uses: actions/checkout@v6
 
-      - name: Install uv and set Python version ${{ matrix.python-version }}
+      - name: 🐍 Install uv and set Python version ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
           activate-environment: true
 
-      - name: Install Packages
+      - name: 🚀 Install Packages
         run: uv pip install -e . --group tests
 
-      - name: Run the Test
+      - name: 🧪 Run the Test
         run: pytest -m "not gpu" --cov=rfdetr_plus --cov-report=xml
 
-      - name: Upload coverage to Codecov
+      - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -60,7 +60,7 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
 
-      - name: Minimize uv cache
+      - name: 🧹 Minimize uv cache
         run: uv cache prune --ci
 
   testing-guardian:
@@ -68,16 +68,16 @@ jobs:
     needs: run-tests
     if: always()
     steps:
-      - name: Display test result
+      - name: 📋 Display test result
         run: echo "${{ needs.run-tests.result }}"
-      - name: Fail guardian on test failure
+      - name: ❌ Fail guardian on test failure
         if: needs.run-tests.result == 'failure'
         run: exit 1
-      - name: Cancelled or skipped
+      - name: ⏭️ Cancelled or skipped
         if: contains(fromJSON('["cancelled", "skipped"]'), needs.run-tests.result)
         run: |
           echo "run-tests job result is '${{ needs.run-tests.result }}'; failing explicitly."
           exit 1
-      - name: Tests succeeded
+      - name: ✅ Tests succeeded
         if: needs.run-tests.result == 'success'
         run: echo "All tests completed successfully in job 'run-tests'."
