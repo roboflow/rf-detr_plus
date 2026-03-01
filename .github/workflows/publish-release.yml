@@ -27,7 +27,7 @@ jobs:
       contents: write # Add this line
     steps:
       - name: 📥 Download distribution artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
