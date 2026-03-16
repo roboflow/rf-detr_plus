@@ -1,6 +1,6 @@
 ci:
   autofix_prs: true
-  autoupdate_schedule: weekly
+  autoupdate_schedule: monthly
   autofix_commit_msg: "fix[pre-commit]: auto format pre-commit hooks"
   autoupdate_commit_msg: "chore[pre-commit]: pre_commit autoupdate"
 
