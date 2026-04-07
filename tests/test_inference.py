@@ -97,7 +97,7 @@ def test_coco_detection_inference_benchmark(
         num_workers=os.cpu_count() or 1,
     )
     base_ds = get_coco_api_from_dataset(val_dataset)
-    criterion, postprocess = build_criterion_and_postprocessors(args)
+    _, postprocess = build_criterion_and_postprocessors(args)
 
     coco_evaluator = CocoEvaluator(base_ds, ["bbox"], args.eval_max_dets)
     f1_accumulator = init_matching_accumulator()
