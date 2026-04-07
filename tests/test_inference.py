@@ -23,8 +23,8 @@ from rfdetr.detr import RFDETR
 from rfdetr.evaluation.f1_sweep import sweep_confidence_thresholds
 from rfdetr.evaluation.matching import build_matching_data, init_matching_accumulator, merge_matching_data
 from rfdetr.models.lwdetr import build_criterion_and_postprocessors
-from rfdetr.utilities.tensors import collate_fn
 from rfdetr.training.callbacks.coco_eval import COCOEvalCallback
+from rfdetr.utilities.tensors import collate_fn
 from torchmetrics.detection import MeanAveragePrecision
 
 from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
