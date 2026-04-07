@@ -35,8 +35,8 @@ from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
     [
         pytest.param(RFDETRXLarge, 0.7, 0.7, 20, id="xlarge-CPU"),
         pytest.param(RFDETR2XLarge, 0.7, 0.7, 20, id="2xlarge-CPU"),
-        pytest.param(RFDETRXLarge, 0.77, 0.74, 200, marks=pytest.mark.gpu, id="xlarge-GPU"),
-        pytest.param(RFDETR2XLarge, 0.78, 0.74, 200, marks=pytest.mark.gpu, id="2xlarge-GPU"),
+        pytest.param(RFDETRXLarge, 0.77, 0.74, 300, marks=pytest.mark.gpu, id="xlarge-GPU"),
+        pytest.param(RFDETR2XLarge, 0.78, 0.74, 300, marks=pytest.mark.gpu, id="2xlarge-GPU"),
     ],
 )
 def test_coco_detection_inference_benchmark(
