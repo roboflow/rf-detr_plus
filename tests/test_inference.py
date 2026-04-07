@@ -11,21 +11,21 @@
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 import json
+import os
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
-from rfdetr.datasets import get_coco_api_from_dataset
 from rfdetr.datasets.coco import CocoDetection, make_coco_transforms_square_div_64
 from rfdetr.detr import RFDETR
-from rfdetr.evaluation.coco_eval import CocoEvaluator
 from rfdetr.evaluation.f1_sweep import sweep_confidence_thresholds
 from rfdetr.evaluation.matching import build_matching_data, init_matching_accumulator, merge_matching_data
 from rfdetr.models.lwdetr import build_criterion_and_postprocessors
-from rfdetr.utilities.box_ops import box_cxcywh_to_xyxy
 from rfdetr.utilities.tensors import collate_fn
+from rfdetr.training.callbacks.coco_eval import COCOEvalCallback
+from torchmetrics.detection import MeanAveragePrecision
 
 from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
 
@@ -88,7 +88,6 @@ def test_coco_detection_inference_benchmark(
     val_dataset = CocoDetection(images_root, annotations_path, transforms=transforms)
     if num_samples is not None:
         val_dataset = torch.utils.data.Subset(val_dataset, range(min(num_samples, len(val_dataset))))
-    import os
 
     data_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -98,52 +97,33 @@ def test_coco_detection_inference_benchmark(
         collate_fn=collate_fn,
         num_workers=os.cpu_count() or 1,
     )
-    base_ds = get_coco_api_from_dataset(val_dataset)
     _, postprocess = build_criterion_and_postprocessors(args)
 
-    coco_evaluator = CocoEvaluator(base_ds, ["bbox"], args.eval_max_dets)
+    map_metric = MeanAveragePrecision(
+        iou_type="bbox",
+        class_metrics=False,
+        max_detection_thresholds=[1, 10, args.eval_max_dets],
+        backend="faster_coco_eval",
+    ).to(device)
     f1_accumulator = init_matching_accumulator()
 
     rfdetr.model.model.eval()
     with torch.no_grad():
         for samples, targets in data_loader:
-            # Move current batch to the same device as the model.
             samples = samples.to(device)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-            # Run model forward pass and decode detections at original image sizes.
             outputs = rfdetr.model.model(samples)
             orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
             results_all = postprocess(outputs, orig_target_sizes)
 
-            # Update COCO mAP evaluator (expects predictions keyed by image_id).
-            res = {target["image_id"].item(): output for target, output in zip(targets, results_all)}
-            coco_evaluator.update(res)
-
-            # Build F1 matching targets in the format expected by build_matching_data.
-            matching_targets: list[dict[str, torch.Tensor]] = []
-            for target in targets:
-                # F1 matching expects absolute xyxy GT boxes.
-                height, width = target["orig_size"].tolist()
-                scale = target["boxes"].new_tensor([width, height, width, height])
-                boxes = box_cxcywh_to_xyxy(target["boxes"]) * scale
-                entry: dict[str, torch.Tensor] = {"boxes": boxes, "labels": target["labels"]}
-                if "iscrowd" in target:
-                    entry["iscrowd"] = target["iscrowd"]
-                matching_targets.append(entry)
-
-            # Accumulate per-class TP/FP/ignore stats for confidence-threshold sweep.
-            batch_matching = build_matching_data(list(results_all), matching_targets)
+            matching_targets = COCOEvalCallback(in_notebook=False)._convert_targets(targets)
+            map_metric.update(results_all, matching_targets)
+            batch_matching = build_matching_data(results_all, matching_targets)
             f1_accumulator = merge_matching_data(f1_accumulator, batch_matching)
 
-    coco_evaluator.synchronize_between_processes()
-    coco_evaluator.accumulate()
-    coco_evaluator.summarize()
-
-    coco_bbox = coco_evaluator.coco_eval["bbox"]
-    # COCO stats index 1 is AP@IoU=0.50
-    _COCO_AP50_STATS_INDEX = 1
-    map_val = float(coco_bbox.stats[_COCO_AP50_STATS_INDEX])
+    map_metrics = map_metric.compute()
+    map_val = float(map_metrics["map_50"])
 
     _EMPTY_CLASS_DATA = {
         "scores": np.array([], dtype=np.float32),
