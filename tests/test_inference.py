@@ -20,9 +20,11 @@ import torch
 from rfdetr.datasets import get_coco_api_from_dataset
 from rfdetr.datasets.coco import CocoDetection, make_coco_transforms_square_div_64
 from rfdetr.detr import RFDETR
-from rfdetr.engine import evaluate
-from rfdetr.models import build_criterion_and_postprocessors
-from rfdetr.util.misc import collate_fn
+from rfdetr.evaluation.coco_eval import CocoEvaluator
+from rfdetr.evaluation.f1_sweep import sweep_confidence_thresholds
+from rfdetr.evaluation.matching import build_matching_data, init_matching_accumulator, merge_matching_data
+from rfdetr.models.lwdetr import build_criterion_and_postprocessors
+from rfdetr.utilities.tensors import collate_fn
 
 from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
 
@@ -97,17 +99,38 @@ def test_coco_detection_inference_benchmark(
     base_ds = get_coco_api_from_dataset(val_dataset)
     criterion, postprocess = build_criterion_and_postprocessors(args)
 
+    coco_evaluator = CocoEvaluator(base_ds, ["bbox"], args.eval_max_dets)
+    f1_accumulator = init_matching_accumulator()
+
     rfdetr.model.model.eval()
     with torch.no_grad():
-        stats, _ = evaluate(
-            rfdetr.model.model,
-            criterion,
-            postprocess,
-            data_loader,
-            base_ds,
-            torch.device(device),
-            args=args,
-        )
+        for samples, targets in data_loader:
+            samples = samples.to(device)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            outputs = rfdetr.model.model(samples)
+            orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+            results_all = postprocess(outputs, orig_target_sizes)
+            res = {target["image_id"].item(): output for target, output in zip(targets, results_all)}
+            coco_evaluator.update(res)
+            batch_matching = build_matching_data(list(results_all), targets)
+            f1_accumulator = merge_matching_data(f1_accumulator, batch_matching)
+
+    coco_evaluator.synchronize_between_processes()
+    coco_evaluator.accumulate()
+    coco_evaluator.summarize()
+
+    coco_bbox = coco_evaluator.coco_eval["bbox"]
+    iou50_idx = int(np.argmax(np.isclose(coco_bbox.params.iouThrs, 0.50)))
+    map_val = float(coco_bbox.stats[1])  # AP@IoU=0.50 (index 1 in COCO stats)
+
+    num_classes = max(f1_accumulator.keys()) + 1 if f1_accumulator else 1
+    per_class_list = [f1_accumulator.get(k, {"scores": np.array([]), "matches": np.array([]), "ignore": np.array([]), "total_gt": 0}) for k in range(num_classes)]
+    classes_with_gt = [k for k, d in f1_accumulator.items() if d["total_gt"] > 0]
+    conf_thresholds = np.linspace(0.0, 1.0, 101)
+    sweep_results = sweep_confidence_thresholds(per_class_list, conf_thresholds, classes_with_gt)
+    f1_val = float(max((r["macro_f1"] for r in sweep_results), default=0.0))
+
+    stats = {"results_json": {"map": map_val, "f1_score": f1_val}, "iou50_idx": iou50_idx}
 
     # Dump results JSON for debugging
     # Use env var COCO_BENCHMARK_DEBUG_DIR to specify a permanent folder, otherwise use temp
@@ -118,10 +141,6 @@ def test_coco_detection_inference_benchmark(
     with open(debug_path, "w") as f:
         json.dump(stats, f, indent=2)
     print(f"Dumped stats to {debug_path}")
-
-    results = stats["results_json"]
-    map_val = results["map"]
-    f1_val = results["f1_score"]
 
     print(f"COCO val2017 [{test_id}]: mAP@50={map_val:.4f}, F1={f1_val:.4f}")
     assert map_val >= threshold_map, f"mAP@50 {map_val:.4f} < {threshold_map}"
