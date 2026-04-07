@@ -41,6 +41,13 @@ dependencies = [
 [project.optional-dependencies]
 
 [dependency-groups]
+# TODO: Temporary: GPU runner only has CUDA 12.8 driver (12080); torch>=2.11 requires a newer driver.
+#   Remove this group and the --group ci-gpu-pin references in CI once the driver is updated.
+#   Does not affect users installing rfdetr from PyPI.
+ci-gpu-pin = [
+    "torch<2.11",
+]
+
 build = [
     "twine>=5.1.1",
     "wheel>=0.40",
@@ -52,10 +59,6 @@ tests = [
   "pytest-cov>=4,<8",
   "pytest-xdist>=3.6.1,<4",
   "rfdetr[train]",
-]
-
-dev = [
-    "pre-commit>=4.5.1,<5",
 ]
 
 [project.urls]

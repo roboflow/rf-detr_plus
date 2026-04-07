@@ -106,6 +106,7 @@ def test_coco_detection_inference_benchmark(
         backend="faster_coco_eval",
     ).to(device)
     f1_accumulator = init_matching_accumulator()
+    eval_converter = COCOEvalCallback(in_notebook=False)
 
     rfdetr.model.model.eval()
     with torch.no_grad():
@@ -117,7 +118,7 @@ def test_coco_detection_inference_benchmark(
             orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
             results_all = postprocess(outputs, orig_target_sizes)
 
-            matching_targets = COCOEvalCallback(in_notebook=False)._convert_targets(targets)
+            matching_targets = eval_converter._convert_targets(targets)
             map_metric.update(results_all, matching_targets)
             batch_matching = build_matching_data(results_all, matching_targets)
             f1_accumulator = merge_matching_data(f1_accumulator, batch_matching)
