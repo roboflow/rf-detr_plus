@@ -26,7 +26,6 @@ class ModelWeights(ModelWeightsBase):
     - md5_hash: The expected MD5 hash for integrity validation
 
     Example:
-        >>> from rfdetr_plus.assets import ModelWeights
         >>> asset = ModelWeights.RF_DETR_XLARGE
         >>> asset.filename
         'rf-detr-xlarge.pth'
