@@ -371,8 +371,8 @@ RF-DETR+ is an extension package that provides additional model variants:
 
 ```python
 # Base RF-DETR imports
-from rfdetr.util.misc import get_rank, get_world_size, is_main_process
-from rfdetr.util.logger import get_logger
+from rfdetr.utilities.distributed import get_rank, get_world_size, is_main_process
+from rfdetr.utilities.logger import get_logger
 
 # Logger usage
 logger = get_logger()  # Default name: "rf-detr", reads LOG_LEVEL env var
