@@ -120,17 +120,20 @@ def test_coco_detection_inference_benchmark(
     coco_evaluator.summarize()
 
     coco_bbox = coco_evaluator.coco_eval["bbox"]
-    iou50_idx = int(np.argmax(np.isclose(coco_bbox.params.iouThrs, 0.50)))
-    map_val = float(coco_bbox.stats[1])  # AP@IoU=0.50 (index 1 in COCO stats)
+    # COCO stats index 1 is AP@IoU=0.50
+    _COCO_AP50_STATS_INDEX = 1
+    map_val = float(coco_bbox.stats[_COCO_AP50_STATS_INDEX])
 
+    _EMPTY_CLASS_DATA = {"scores": np.array([]), "matches": np.array([]), "ignore": np.array([]), "total_gt": 0}
+    _NUM_CONF_THRESHOLDS = 101
     num_classes = max(f1_accumulator.keys()) + 1 if f1_accumulator else 1
-    per_class_list = [f1_accumulator.get(k, {"scores": np.array([]), "matches": np.array([]), "ignore": np.array([]), "total_gt": 0}) for k in range(num_classes)]
+    per_class_list = [f1_accumulator.get(k, _EMPTY_CLASS_DATA) for k in range(num_classes)]
     classes_with_gt = [k for k, d in f1_accumulator.items() if d["total_gt"] > 0]
-    conf_thresholds = np.linspace(0.0, 1.0, 101)
+    conf_thresholds = np.linspace(0.0, 1.0, _NUM_CONF_THRESHOLDS)
     sweep_results = sweep_confidence_thresholds(per_class_list, conf_thresholds, classes_with_gt)
     f1_val = float(max((r["macro_f1"] for r in sweep_results), default=0.0))
 
-    stats = {"results_json": {"map": map_val, "f1_score": f1_val}, "iou50_idx": iou50_idx}
+    stats = {"results_json": {"map": map_val, "f1_score": f1_val}}
 
     # Dump results JSON for debugging
     # Use env var COCO_BENCHMARK_DEBUG_DIR to specify a permanent folder, otherwise use temp
