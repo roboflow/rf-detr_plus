@@ -136,7 +136,9 @@ def test_coco_detection_inference_benchmark(
     if f1_accumulator:
         class_ids = sorted(f1_accumulator.keys())
         per_class_list = [f1_accumulator[class_id] for class_id in class_ids]
-        classes_with_gt = [index for index, class_id in enumerate(class_ids) if f1_accumulator[class_id]["total_gt"] > 0]
+        classes_with_gt = [
+            index for index, class_id in enumerate(class_ids) if f1_accumulator[class_id]["total_gt"] > 0
+        ]
     else:
         per_class_list = [_EMPTY_CLASS_DATA]
         classes_with_gt = []
