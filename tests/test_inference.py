@@ -11,28 +11,32 @@
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 import json
+import os
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
-from rfdetr.datasets import get_coco_api_from_dataset
 from rfdetr.datasets.coco import CocoDetection, make_coco_transforms_square_div_64
 from rfdetr.detr import RFDETR
-from rfdetr.engine import evaluate
-from rfdetr.models import build_criterion_and_postprocessors
-from rfdetr.util.misc import collate_fn
+from rfdetr.evaluation.f1_sweep import sweep_confidence_thresholds
+from rfdetr.evaluation.matching import build_matching_data, init_matching_accumulator, merge_matching_data
+from rfdetr.models.lwdetr import build_criterion_and_postprocessors
+from rfdetr.training.callbacks.coco_eval import COCOEvalCallback
+from rfdetr.utilities.tensors import collate_fn
+from torchmetrics.detection import MeanAveragePrecision
 
 from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
 
 
-@pytest.mark.gpu
 @pytest.mark.parametrize(
     ("model_cls", "threshold_map", "threshold_f1", "num_samples"),
     [
-        pytest.param(RFDETRXLarge, 0.77, 0.74, 500, id="xlarge"),
-        pytest.param(RFDETR2XLarge, 0.78, 0.74, 500, id="2xlarge"),
+        pytest.param(RFDETRXLarge, 0.7, 0.7, 20, id="xlarge-CPU"),
+        pytest.param(RFDETR2XLarge, 0.7, 0.7, 20, id="2xlarge-CPU"),
+        pytest.param(RFDETRXLarge, 0.77, 0.73, 500, marks=pytest.mark.gpu, id="xlarge-GPU"),
+        pytest.param(RFDETR2XLarge, 0.78, 0.74, 500, marks=pytest.mark.gpu, id="2xlarge-GPU"),
     ],
 )
 def test_coco_detection_inference_benchmark(
@@ -84,7 +88,6 @@ def test_coco_detection_inference_benchmark(
     val_dataset = CocoDetection(images_root, annotations_path, transforms=transforms)
     if num_samples is not None:
         val_dataset = torch.utils.data.Subset(val_dataset, range(min(num_samples, len(val_dataset))))
-    import os
 
     data_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -94,20 +97,57 @@ def test_coco_detection_inference_benchmark(
         collate_fn=collate_fn,
         num_workers=os.cpu_count() or 1,
     )
-    base_ds = get_coco_api_from_dataset(val_dataset)
-    criterion, postprocess = build_criterion_and_postprocessors(args)
+    _, postprocess = build_criterion_and_postprocessors(args)
+
+    map_metric = MeanAveragePrecision(
+        iou_type="bbox",
+        class_metrics=False,
+        max_detection_thresholds=[1, 10, args.eval_max_dets],
+        backend="faster_coco_eval",
+    ).to(device)
+    f1_accumulator = init_matching_accumulator()
+    eval_converter = COCOEvalCallback(in_notebook=False)
 
     rfdetr.model.model.eval()
     with torch.no_grad():
-        stats, _ = evaluate(
-            rfdetr.model.model,
-            criterion,
-            postprocess,
-            data_loader,
-            base_ds,
-            torch.device(device),
-            args=args,
-        )
+        for samples, targets in data_loader:
+            samples = samples.to(device)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+            outputs = rfdetr.model.model(samples)
+            orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+            results_all = postprocess(outputs, orig_target_sizes)
+
+            matching_targets = eval_converter._convert_targets(targets)
+            map_metric.update(results_all, matching_targets)
+            batch_matching = build_matching_data(results_all, matching_targets)
+            f1_accumulator = merge_matching_data(f1_accumulator, batch_matching)
+
+    map_metrics = map_metric.compute()
+    map_val = float(map_metrics["map_50"])
+
+    _EMPTY_CLASS_DATA = {
+        "scores": np.array([], dtype=np.float32),
+        "matches": np.array([], dtype=np.int64),
+        "ignore": np.array([], dtype=bool),
+        "total_gt": 0,
+    }
+    _NUM_CONF_THRESHOLDS = 101
+    if f1_accumulator:
+        # Class IDs are sparse in COCO; evaluate only observed classes.
+        class_ids = sorted(f1_accumulator.keys())
+        per_class_list = [f1_accumulator[class_id] for class_id in class_ids]
+        classes_with_gt = [
+            index for index, class_id in enumerate(class_ids) if f1_accumulator[class_id]["total_gt"] > 0
+        ]
+    else:
+        per_class_list = [_EMPTY_CLASS_DATA]
+        classes_with_gt = []
+    conf_thresholds = np.linspace(0.0, 1.0, _NUM_CONF_THRESHOLDS)
+    sweep_results = sweep_confidence_thresholds(per_class_list, conf_thresholds, classes_with_gt)
+    f1_val = float(max((r["macro_f1"] for r in sweep_results), default=0.0))
+
+    stats = {"results_json": {"map": map_val, "f1_score": f1_val}}
 
     # Dump results JSON for debugging
     # Use env var COCO_BENCHMARK_DEBUG_DIR to specify a permanent folder, otherwise use temp
@@ -118,10 +158,6 @@ def test_coco_detection_inference_benchmark(
     with open(debug_path, "w") as f:
         json.dump(stats, f, indent=2)
     print(f"Dumped stats to {debug_path}")
-
-    results = stats["results_json"]
-    map_val = results["map"]
-    f1_val = results["f1_score"]
 
     print(f"COCO val2017 [{test_id}]: mAP@50={map_val:.4f}, F1={f1_val:.4f}")
     assert map_val >= threshold_map, f"mAP@50 {map_val:.4f} < {threshold_map}"

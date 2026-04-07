@@ -58,7 +58,7 @@ import requests
 import supervision as sv
 from PIL import Image
 from rfdetr_plus import RFDETRXLarge
-from rfdetr.util.coco_classes import COCO_CLASSES
+from rfdetr.assets.coco_classes import COCO_CLASSES
 
 model = RFDETRXLarge(accept_platform_model_license=True)
 

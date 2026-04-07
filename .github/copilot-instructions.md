@@ -56,8 +56,8 @@ pre-commit run --all-files
 
 **Imports:**
 
-- Always use direct imports: `from rfdetr.util.misc import get_rank, is_main_process`
-- Logger: `from rfdetr.util.logger import get_logger` (reads `LOG_LEVEL` env var)
+- Always use direct imports: `from rfdetr.utilities.distributed import get_rank, is_main_process`
+- Logger: `from rfdetr.utilities.logger import get_logger` (reads `LOG_LEVEL` env var)
 - RF-DETR+ models: `from rfdetr_plus.models.detection import RFDETRXLarge, RFDETR2XLarge`
 
 ## Testing & Development Workflow
@@ -87,8 +87,8 @@ pre-commit run --all-files
 
 ```python
 # Base RF-DETR imports (always use direct imports, NOT import ... as pattern)
-from rfdetr.util.misc import get_rank, is_main_process, save_on_master
-from rfdetr.util.logger import get_logger
+from rfdetr.utilities.distributed import get_rank, is_main_process, save_on_master
+from rfdetr.utilities.logger import get_logger
 
 # RF-DETR+ models
 from rfdetr_plus.models.detection import RFDETRXLarge, RFDETR2XLarge

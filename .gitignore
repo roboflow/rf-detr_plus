@@ -155,3 +155,6 @@ output/*
 # test artifacts
 test_visualizations/
 debugging/
+
+# model weights
+*.pth
