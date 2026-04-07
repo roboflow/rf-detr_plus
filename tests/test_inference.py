@@ -33,8 +33,10 @@ from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
 @pytest.mark.parametrize(
     ("model_cls", "threshold_map", "threshold_f1", "num_samples"),
     [
-        pytest.param(RFDETRXLarge, 0.77, 0.74, 20, id="xlarge"),  # FIXME
-        pytest.param(RFDETR2XLarge, 0.78, 0.74, 20, id="2xlarge"),  # FIXME
+        pytest.param(RFDETRXLarge, 0.7, 0.7, 20, id="xlarge-CPU"),
+        pytest.param(RFDETR2XLarge, 0.7, 0.7, 20, id="2xlarge-CPU"),
+        pytest.param(RFDETRXLarge, 0.77, 0.74, 200, marks=pytest.mark.gpu, id="xlarge-GPU"),  # FIXME
+        pytest.param(RFDETR2XLarge, 0.78, 0.74, 200, marks=pytest.mark.gpu, id="2xlarge-GPU"),  # FIXME
     ],
 )
 def test_coco_detection_inference_benchmark(
@@ -124,11 +126,20 @@ def test_coco_detection_inference_benchmark(
     _COCO_AP50_STATS_INDEX = 1
     map_val = float(coco_bbox.stats[_COCO_AP50_STATS_INDEX])
 
-    _EMPTY_CLASS_DATA = {"scores": np.array([]), "matches": np.array([]), "ignore": np.array([]), "total_gt": 0}
+    _EMPTY_CLASS_DATA = {
+        "scores": np.array([], dtype=np.float32),
+        "matches": np.array([], dtype=np.int64),
+        "ignore": np.array([], dtype=bool),
+        "total_gt": 0,
+    }
     _NUM_CONF_THRESHOLDS = 101
-    num_classes = max(f1_accumulator.keys()) + 1 if f1_accumulator else 1
-    per_class_list = [f1_accumulator.get(k, _EMPTY_CLASS_DATA) for k in range(num_classes)]
-    classes_with_gt = [k for k, d in f1_accumulator.items() if d["total_gt"] > 0]
+    if f1_accumulator:
+        class_ids = sorted(f1_accumulator.keys())
+        per_class_list = [f1_accumulator[class_id] for class_id in class_ids]
+        classes_with_gt = [index for index, class_id in enumerate(class_ids) if f1_accumulator[class_id]["total_gt"] > 0]
+    else:
+        per_class_list = [_EMPTY_CLASS_DATA]
+        classes_with_gt = []
     conf_thresholds = np.linspace(0.0, 1.0, _NUM_CONF_THRESHOLDS)
     sweep_results = sweep_confidence_thresholds(per_class_list, conf_thresholds, classes_with_gt)
     f1_val = float(max((r["macro_f1"] for r in sweep_results), default=0.0))
