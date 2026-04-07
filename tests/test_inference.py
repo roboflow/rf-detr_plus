@@ -24,6 +24,7 @@ from rfdetr.evaluation.coco_eval import CocoEvaluator
 from rfdetr.evaluation.f1_sweep import sweep_confidence_thresholds
 from rfdetr.evaluation.matching import build_matching_data, init_matching_accumulator, merge_matching_data
 from rfdetr.models.lwdetr import build_criterion_and_postprocessors
+from rfdetr.utilities.box_ops import box_cxcywh_to_xyxy
 from rfdetr.utilities.tensors import collate_fn
 
 from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
@@ -106,14 +107,33 @@ def test_coco_detection_inference_benchmark(
     rfdetr.model.model.eval()
     with torch.no_grad():
         for samples, targets in data_loader:
+            # Move current batch to the same device as the model.
             samples = samples.to(device)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+            # Run model forward pass and decode detections at original image sizes.
             outputs = rfdetr.model.model(samples)
             orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
             results_all = postprocess(outputs, orig_target_sizes)
+
+            # Update COCO mAP evaluator (expects predictions keyed by image_id).
             res = {target["image_id"].item(): output for target, output in zip(targets, results_all)}
             coco_evaluator.update(res)
-            batch_matching = build_matching_data(list(results_all), targets)
+
+            # Build F1 matching targets in the format expected by build_matching_data.
+            matching_targets: list[dict[str, torch.Tensor]] = []
+            for target in targets:
+                # F1 matching expects absolute xyxy GT boxes.
+                height, width = target["orig_size"].tolist()
+                scale = target["boxes"].new_tensor([width, height, width, height])
+                boxes = box_cxcywh_to_xyxy(target["boxes"]) * scale
+                entry: dict[str, torch.Tensor] = {"boxes": boxes, "labels": target["labels"]}
+                if "iscrowd" in target:
+                    entry["iscrowd"] = target["iscrowd"]
+                matching_targets.append(entry)
+
+            # Accumulate per-class TP/FP/ignore stats for confidence-threshold sweep.
+            batch_matching = build_matching_data(list(results_all), matching_targets)
             f1_accumulator = merge_matching_data(f1_accumulator, batch_matching)
 
     coco_evaluator.synchronize_between_processes()
@@ -133,6 +153,7 @@ def test_coco_detection_inference_benchmark(
     }
     _NUM_CONF_THRESHOLDS = 101
     if f1_accumulator:
+        # Class IDs are sparse in COCO; evaluate only observed classes.
         class_ids = sorted(f1_accumulator.keys())
         per_class_list = [f1_accumulator[class_id] for class_id in class_ids]
         classes_with_gt = [
