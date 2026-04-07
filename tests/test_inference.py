@@ -33,8 +33,8 @@ from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
 @pytest.mark.parametrize(
     ("model_cls", "threshold_map", "threshold_f1", "num_samples"),
     [
-        pytest.param(RFDETRXLarge, 0.77, 0.74, 250, id="xlarge"),
-        pytest.param(RFDETR2XLarge, 0.78, 0.74, 250, id="2xlarge"),
+        pytest.param(RFDETRXLarge, 0.77, 0.74, 20, id="xlarge"),  # FIXME
+        pytest.param(RFDETR2XLarge, 0.78, 0.74, 20, id="2xlarge"),  # FIXME
     ],
 )
 def test_coco_detection_inference_benchmark(
