@@ -74,6 +74,9 @@ def test_coco_detection_inference_benchmark(
     images_root, annotations_path = download_coco_val
 
     rfdetr = model_cls(device=device)
+    # RF-DETR defers moving weights onto the target device until public inference paths run.
+    # This benchmark calls the raw model directly, so materialize the requested device here.
+    rfdetr.model.model = rfdetr.model.model.to(device)
     config = rfdetr.model_config
     args = rfdetr.model.args
     if not hasattr(args, "eval_max_dets"):
