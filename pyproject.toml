@@ -57,7 +57,7 @@ build = [
 tests = [
   "pytest>=9.0.3,<10",
   "pytest-cov>=7.1.0,<8",
-  "pytest-xdist>=3.6.1,<4",
+  "pytest-xdist>=3.8.0,<4",
   "rfdetr[train]",
 ]
 
