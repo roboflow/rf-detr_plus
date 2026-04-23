@@ -51,7 +51,7 @@ ci-gpu-pin = [
 build = [
     "twine>=6.2.0",
     "wheel>=0.47.0",
-    "build>=0.10"
+    "build>=1.4.4"
 ]
 
 tests = [
