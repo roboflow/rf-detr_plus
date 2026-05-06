@@ -35,7 +35,7 @@ classifiers = [
 keywords = ["machine-learning", "deep-learning", "vision", "ML", "DL", "AI", "DETR", "RF-DETR", "Roboflow"]
 
 dependencies = [
-    "rfdetr>=1.6.0,<2",
+    "rfdetr>=1.6.5.post0,<2",
 ]
 
 [project.optional-dependencies]
