@@ -33,7 +33,7 @@ jobs:
         run: nvidia-smi
 
       - name: 📥 Checkout the repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: 🐍 Install uv and set Python version
         uses: astral-sh/setup-uv@v7
@@ -52,7 +52,7 @@ jobs:
           --cov=rfdetr_plus --cov-report=xml
 
       - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: "coverage.xml"
