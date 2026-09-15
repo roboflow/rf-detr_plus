@@ -6,7 +6,6 @@
 [![license](https://img.shields.io/badge/license-PML--1.0-blue)](https://github.com/roboflow/rf-detr-plus/blob/main/LICENSE)
 
 [![discord](https://img.shields.io/discord/1159501506232451173?logo=discord&label=discord&labelColor=fff&color=5865f2&link=https%3A%2F%2Fdiscord.gg%2FGbfgXGJ8Bk)](https://discord.gg/GbfgXGJ8Bk)
-
 [![Papers with Code leaderboard](https://paperswithcode.co/api/v1/papers/2511.09554/leaderboard-badge.svg?eval=821&live=1)](https://paperswithcode.co/api/v1/papers/2511.09554/leaderboard-badge-link?eval=821)
 
 RF-DETR is the core package in the ecosystem. It provides the full training and inference stack, the {Nano, Small, Medium, Large} model lineup, and the APIs most users build on. RF-DETR+ is an extension package for [RF-DETR](https://github.com/roboflow/rf-detr) that adds the **XLarge** and **2XLarge** detection models for maximum accuracy.
