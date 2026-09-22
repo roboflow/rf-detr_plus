@@ -61,6 +61,7 @@ rf-detr_plus/
 │   └── ISSUE_TEMPLATE/   # Issue templates
 ├── src/rfdetr_plus/      # Main package source code
 │   ├── __init__.py       # Package entry point
+│   ├── assets/           # Model weight metadata/download helpers
 │   └── models/           # Model implementations (XLarge, 2XLarge variants)
 ├── tests/                # Test suite
 │   └── test_*.py         # Test files
@@ -76,7 +77,7 @@ rf-detr_plus/
 - **`src/rfdetr_plus/`** - All source code for the RF-DETR+ package
 
     - Contains extended model implementations (XLarge, 2XLarge variants)
-    - Depends on the base `rfdetr` package (>=1.5.0)
+    - Depends on the base `rfdetr` package (>=1.8.0,\<2)
 
 - **`tests/`** - Test suite
 
@@ -138,7 +139,9 @@ RF-DETR+ extends the base RF-DETR package with additional model variants.
 
 **Core dependency:**
 
-- `rfdetr>=1.5.0,<2` - Base RF-DETR package
+- `rfdetr>=1.8.0,<2` - Base RF-DETR package. `ModelConfig.compile=True` is a documented no-op
+    below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1; pin ≥1.10.1 if you need it to
+    actually accelerate training.
 
 **Development groups:**
 
@@ -356,7 +359,7 @@ RF-DETR+ is an extension package that provides additional model variants:
 
 - Extends the base `rfdetr` package
 - Provides XLarge and 2XLarge model variants
-- Depends on `rfdetr>=1.5.0,<2` for all core functionality
+- Depends on `rfdetr>=1.8.0,<2` for all core functionality
 - Licensed under Platform Model License (PML) 1.0
 
 ### Model Architecture
