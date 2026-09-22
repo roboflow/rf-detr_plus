@@ -158,3 +158,11 @@ debugging/
 
 # model weights
 *.pth
+
+# AI assistant artifacts
+.cache/
+.claude/state/
+.plans/
+.reports/
+.temp/
+releases/
