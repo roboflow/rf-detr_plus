@@ -4,8 +4,11 @@
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 
+import json
 from pathlib import Path
 
+import numpy as np
+import PIL.Image
 import pytest
 from rfdetr.datasets._develop import (
     _COCO_URLS,
@@ -52,3 +55,48 @@ def seed_everything(request: pytest.FixtureRequest) -> None:
     """
     seed = request.param if hasattr(request, "param") else 7
     seed_all(seed)
+
+
+@pytest.fixture
+def synthetic_roboflow_dataset(tmp_path: Path) -> Path:
+    """Build a minimal Roboflow-format COCO dataset (train/valid splits, one class) for training smoke tests.
+
+    Matches the directory layout ``rfdetr.datasets.coco.build_roboflow_from_coco`` expects:
+    ``<root>/<split>/_annotations.coco.json`` plus the referenced images, for
+    ``split in ("train", "valid")``. Used by GPU-marked training smoke tests that exercise
+    ``ModelConfig.compile``/``cuda_graphs`` end to end without depending on a real dataset
+    download.
+
+    Returns:
+        Path to the dataset root directory.
+    """
+    root = tmp_path / "synthetic_dataset"
+    category = {"id": 1, "name": "object", "supercategory": "none"}
+    image_size = 128
+    bbox = [16, 16, 64, 64]
+
+    for split, num_images in (("train", 2), ("valid", 1)):
+        split_dir = root / split
+        split_dir.mkdir(parents=True)
+        images = []
+        annotations = []
+        for idx in range(num_images):
+            file_name = f"{idx}.jpg"
+            pixels = np.random.randint(0, 255, (image_size, image_size, 3), dtype=np.uint8)
+            PIL.Image.fromarray(pixels).save(split_dir / file_name)
+            images.append({"id": idx, "file_name": file_name, "width": image_size, "height": image_size})
+            annotations.append(
+                {
+                    "id": idx,
+                    "image_id": idx,
+                    "category_id": category["id"],
+                    "bbox": bbox,
+                    "area": bbox[2] * bbox[3],
+                    "iscrowd": 0,
+                }
+            )
+        coco = {"images": images, "annotations": annotations, "categories": [category]}
+        with open(split_dir / "_annotations.coco.json", "w") as f:
+            json.dump(coco, f)
+
+    return root
