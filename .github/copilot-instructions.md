@@ -8,7 +8,10 @@
 
 RF-DETR+ is an extension package providing XLarge and 2XLarge model variants for RF-DETR, a real-time transformer architecture for object detection and instance segmentation.
 
-**Project Type:** Python ML extension package (computer vision) **Python:** >=3.10 (3.10, 3.11, 3.12, 3.13) **License:** Platform Model License (PML) 1.0 **Dependency:** Requires `rfdetr>=1.8.0,<2` base package. `compile=True` is a no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1.
+- **Project Type:** Python ML extension package (computer vision)
+- **Python:** >=3.10 (3.10, 3.11, 3.12, 3.13)
+- **License:** Platform Model License (PML) 1.0
+- **Dependency:** Requires `rfdetr>=1.8.0,<2` base package. `compile=True` is a no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1.
 
 > [!TIP]
 >
