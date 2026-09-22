@@ -6,7 +6,12 @@
 
 from typing import Any, Literal
 
-from rfdetr.config import ModelConfig, PathLikeStr
+from rfdetr.config import ModelConfig
+
+try:
+    from rfdetr.config import PathLikeStr
+except ImportError:
+    PathLikeStr = str
 from rfdetr.detr import RFDETR
 
 
