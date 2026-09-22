@@ -5,12 +5,13 @@
 # ------------------------------------------------------------------------
 """Compatibility tests between rfdetr_plus's configs and base rfdetr's ModelConfig/TrainConfig.
 
-Verifies that every field base ``rfdetr`` exposes on ``ModelConfig`` (including newly added ones
-such as ``compile`` and ``cuda_graphs``) reaches ``RFDETRXLargeConfig``/``RFDETR2XLargeConfig``
-through inheritance, that shared field defaults have not silently drifted from base, that
-``TrainConfig`` is used unmodified (rfdetr_plus does not subclass it), and that
-``RFDETR.from_checkpoint()`` resolves the correct Plus config class rather than falling back to
-base ``ModelConfig``.
+Verifies that every field base ``rfdetr`` currently exposes on ``ModelConfig`` (including
+``compile``) reaches ``RFDETRXLargeConfig``/``RFDETR2XLargeConfig`` through inheritance, that
+shared field defaults have not silently drifted from base, that ``TrainConfig`` is used
+unmodified (rfdetr_plus does not subclass it), and that constructing a Plus model with
+``pretrain_weights=None`` and round-tripping it through ``RFDETR.from_checkpoint()`` both succeed
+and resolve back to the same Plus model class. A ``cuda_graphs`` round-trip check is also present,
+self-activating once upstream ``rfdetr`` releases that field (absent as of this writing).
 """
 
 import argparse
@@ -139,13 +140,16 @@ def test_cuda_graphs_field_reaches_plus_config(config_cls: type[ModelConfig]) ->
 def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETRXLarge | RFDETR2XLarge]) -> None:
     """rfdetr.from_checkpoint() must resolve back to the same Plus model class it was saved from.
 
-    This is the regression test for the _model_config_class alignment fix: from_checkpoint() reads
-    _model_config_class via getattr() directly (bypassing any get_model_config() method override),
-    so a class that only overrode the method instead of the class attribute would silently fall
-    back to base ModelConfig here.
+    Model class resolution goes through RFDETR's _name_map/_model_map (matched on the checkpoint's
+    recorded pretrain_weights filename), not through _model_config_class — that attribute only
+    filters which saved config keys from_checkpoint() forwards to the constructor. This test's real
+    regression guard is architecture-only construction (pretrain_weights=None): pre-1.1.0 the Plus
+    configs narrowed that field's annotation to plain str (still with a default value, so not
+    required to pass), so an explicit pretrain_weights=None in model_cls(...) below failed pydantic
+    validation before from_checkpoint() was ever reached.
 
-    Builds an architecture-only instance (pretrain_weights=None, no network weight download beyond
-    the DINOv2 backbone construction already exercised by test_model_inference), saves a minimal
+    Builds an architecture-only instance (pretrain_weights=None fetches no weights for these Plus
+    variants), saves a minimal
     training-style checkpoint from its state_dict, and reloads it through from_checkpoint().
     """
     model_instance = model_cls(pretrain_weights=None, accept_platform_model_license=True)
