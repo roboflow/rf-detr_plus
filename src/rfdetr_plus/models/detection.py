@@ -6,7 +6,7 @@
 
 from typing import Any, Literal
 
-from rfdetr.config import ModelConfig, TrainConfig
+from rfdetr.config import ModelConfig
 from rfdetr.detr import RFDETR
 
 
@@ -48,27 +48,17 @@ class RFDETR2XLargeConfig(ModelConfig):
 
 class RFDETRXLarge(RFDETR):
     size: Literal["rfdetr-xlarge"] = "rfdetr-xlarge"
+    _model_config_class = RFDETRXLargeConfig
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs.pop("accept_platform_model_license", None)
         super().__init__(**kwargs)
-
-    def get_model_config(self, **kwargs: Any) -> RFDETRXLargeConfig:
-        return RFDETRXLargeConfig(**kwargs)
-
-    def get_train_config(self, **kwargs: Any) -> TrainConfig:
-        return TrainConfig(**kwargs)
 
 
 class RFDETR2XLarge(RFDETR):
     size: Literal["rfdetr-2xlarge"] = "rfdetr-2xlarge"
+    _model_config_class = RFDETR2XLargeConfig
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs.pop("accept_platform_model_license", None)
         super().__init__(**kwargs)
-
-    def get_model_config(self, **kwargs: Any) -> RFDETR2XLargeConfig:
-        return RFDETR2XLargeConfig(**kwargs)
-
-    def get_train_config(self, **kwargs: Any) -> TrainConfig:
-        return TrainConfig(**kwargs)
