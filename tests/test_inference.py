@@ -5,11 +5,6 @@
 # ------------------------------------------------------------------------
 """Test basic package functionality."""
 
-# ------------------------------------------------------------------------
-# RF-DETR+
-# Copyright (c) 2026 Roboflow, Inc. All Rights Reserved.
-# Licensed under the Platform Model License 1.0 [see LICENSE for details]
-# ------------------------------------------------------------------------
 import json
 import os
 import tempfile
@@ -176,7 +171,7 @@ def test_coco_detection_inference_benchmark(
         pytest.param(RFDETR2XLarge, 880, {"compile": True}, id="2xlarge-compile"),
     ],
 )
-def test_model_inference(model_class, resolution, extra_kwargs) -> None:
+def test_model_inference(model_class: type[RFDETR], resolution: int, extra_kwargs: dict[str, bool]) -> None:
     """Test that we can instantiate RF-DETR+ models and run inference, including with compile=True.
 
     ``compile`` is a training-side torch.compile gate (see rfdetr's training/module_model.py); on
