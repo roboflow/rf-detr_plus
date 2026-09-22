@@ -168,16 +168,24 @@ def test_coco_detection_inference_benchmark(
 
 
 @pytest.mark.parametrize(
-    ("model_class", "resolution"),
+    ("model_class", "resolution", "extra_kwargs"),
     [
-        (RFDETRXLarge, 700),
-        (RFDETR2XLarge, 880),
+        pytest.param(RFDETRXLarge, 700, {}, id="xlarge"),
+        pytest.param(RFDETR2XLarge, 880, {}, id="2xlarge"),
+        pytest.param(RFDETRXLarge, 700, {"compile": True}, id="xlarge-compile"),
+        pytest.param(RFDETR2XLarge, 880, {"compile": True}, id="2xlarge-compile"),
     ],
 )
-def test_model_inference(model_class, resolution) -> None:
-    """Test that we can instantiate RF-DETR+ models and run inference."""
+def test_model_inference(model_class, resolution, extra_kwargs) -> None:
+    """Test that we can instantiate RF-DETR+ models and run inference, including with compile=True.
+
+    ``compile`` is a training-side torch.compile gate (see rfdetr's training/module_model.py); on
+    CPU and outside train(), it must not change construction or predict() behavior. These cases
+    prove the flag round-trips through the Plus config and doesn't break the inference path it is
+    not meant to touch.
+    """
     # Instantiate and run inference
-    rf_detr = model_class()
+    rf_detr = model_class(**extra_kwargs)
     dummy_image = np.random.randint(0, 255, (resolution, resolution, 3), dtype=np.uint8)
 
     # Run inference - this verifies the model can be instantiated and used
