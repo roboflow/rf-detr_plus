@@ -10,7 +10,7 @@ Verifies that every field base ``rfdetr`` currently exposes on ``ModelConfig`` (
 shared field defaults have not silently drifted from base, that ``TrainConfig`` is used
 unmodified (rfdetr_plus does not subclass it), and that constructing a Plus model with
 ``pretrain_weights=None`` and round-tripping it through ``RFDETR.from_checkpoint()`` both succeed
-and resolve back to the same Plus model class. A ``cuda_graphs`` round-trip check is also present,
+and resolve back to the same Plus model class. A ``cuda_graphs`` construction check is also present,
 self-activating once upstream ``rfdetr`` releases that field (absent as of this writing).
 """
 
@@ -148,8 +148,8 @@ def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETRXLarge 
     required to pass), so an explicit pretrain_weights=None in model_cls(...) below failed pydantic
     validation before from_checkpoint() was ever reached.
 
-    Builds an architecture-only instance (pretrain_weights=None fetches no weights for these Plus
-    variants), saves a minimal
+    Builds an architecture-only instance (pretrain_weights=None skips the RF-DETR checkpoint;
+    the DINOv2 backbone setup may still load its own weights), saves a minimal
     training-style checkpoint from its state_dict, and reloads it through from_checkpoint().
     """
     model_instance = model_cls(pretrain_weights=None, accept_platform_model_license=True)
