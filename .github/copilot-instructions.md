@@ -1,17 +1,17 @@
 # RF-DETR+ Copilot Instructions
 
 > [!NOTE]
+>
 > This document is GitHub Copilot-specific guidance. For canonical contribution guidelines (test-driven development, code quality, docstrings, etc.), see [CONTRIBUTING.md](CONTRIBUTING.md). For detailed agent-specific context, see [AGENTS.md](../AGENTS.md).
 
 ## Repository Overview
 
 RF-DETR+ is an extension package providing XLarge and 2XLarge model variants for RF-DETR, a real-time transformer architecture for object detection and instance segmentation.
 
-**Project Type:** Python ML extension package (computer vision)
-**Python:** >=3.10 (3.10, 3.11, 3.12, 3.13)
-**License:** Platform Model License (PML) 1.0
-**Dependency:** Requires `rfdetr>=1.8.0,<2` base package. `compile=True` is a no-op below rfdetr
-1.10.0 and not `multi_scale`-safe until 1.10.1.
+- **Project Type:** Python ML extension package (computer vision)
+- **Python:** >=3.10 (3.10, 3.11, 3.12, 3.13)
+- **License:** Platform Model License (PML) 1.0
+- **Dependency:** Requires `rfdetr>=1.8.0,<2` base package. `compile=True` is a no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1.
 
 > [!TIP]
 >
@@ -35,6 +35,7 @@ uv build
 ```
 
 > [!IMPORTANT]
+>
 > Run `uv sync` after pulling changes to update dependencies.
 
 ## Code Quality
