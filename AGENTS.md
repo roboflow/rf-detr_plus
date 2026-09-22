@@ -44,11 +44,15 @@ As an AI agent contributing to RF-DETR+, you are responsible for:
     - Write secure code (prevent injection vulnerabilities)
     - Follow existing patterns in the codebase
 
-> [!NOTE] Keeping documentation current ensures consistency across agent contributions and reduces repeated feedback on the same issues.
+> [!NOTE]
+>
+> Keeping documentation current ensures consistency across agent contributions and reduces repeated feedback on the same issues.
 
 ## Build & Development Environment
 
-> [!NOTE] **Canonical Reference:** See [Development Environment Setup](.github/CONTRIBUTING.md#development-environment-setup) in CONTRIBUTING.md for complete setup instructions.
+> [!NOTE]
+>
+> **Canonical Reference:** See [Development Environment Setup](.github/CONTRIBUTING.md#development-environment-setup) in CONTRIBUTING.md for complete setup instructions.
 
 ### Setup
 
@@ -73,7 +77,9 @@ See `pyproject.toml` for complete dependency specifications:
 
 ## Testing
 
-> [!NOTE] **Canonical Reference:** See [Test-Driven Development](.github/CONTRIBUTING.md#test-driven-development) in CONTRIBUTING.md for complete guidelines.
+> [!NOTE]
+>
+> **Canonical Reference:** See [Test-Driven Development](.github/CONTRIBUTING.md#test-driven-development) in CONTRIBUTING.md for complete guidelines.
 >
 > **CI Workflows (Source of Truth):** See `.github/workflows/` for exact test commands used in CI.
 
@@ -92,7 +98,9 @@ pre-commit run --all-files
 
 ### Testing Principles
 
-> [!IMPORTANT] **Testing Requirements:**
+> [!IMPORTANT]
+>
+> **Testing Requirements:**
 >
 > - ⚠️ **During development:** Tests may fail as you work through TDD cycle
 > - ✅ **Before opening PR:** Final commit MUST have all tests passing
@@ -113,7 +121,9 @@ pre-commit run --all-files
 
 ## Code Quality & Linting
 
-> [!NOTE] **Canonical Reference:** See [Code Quality and Linting](.github/CONTRIBUTING.md#code-quality-and-linting) in CONTRIBUTING.md for setup and details.
+> [!NOTE]
+>
+> **Canonical Reference:** See [Code Quality and Linting](.github/CONTRIBUTING.md#code-quality-and-linting) in CONTRIBUTING.md for setup and details.
 
 ### Command
 
@@ -122,7 +132,9 @@ pre-commit run --all-files
 pre-commit run --all-files
 ```
 
-> [!TIP] Pre-commit hooks will auto-format many issues. Review changes and re-stage files.
+> [!TIP]
+>
+> Pre-commit hooks will auto-format many issues. Review changes and re-stage files.
 
 **Configuration Files:**
 
@@ -159,7 +171,9 @@ uv run twine check --strict dist/*
 
 ## Project Structure
 
-> [!NOTE] **Canonical Reference:** See [Project Structure](.github/CONTRIBUTING.md#project-structure) in CONTRIBUTING.md for complete project organization, directory descriptions, and configuration files.
+> [!NOTE]
+>
+> **Canonical Reference:** See [Project Structure](.github/CONTRIBUTING.md#project-structure) in CONTRIBUTING.md for complete project organization, directory descriptions, and configuration files.
 >
 > **Quick summary:** `src/rfdetr_plus/` (source code - XLarge and 2XLarge model variants), `tests/` (test suite), `.github/` (CI/CD), `pyproject.toml` (dependencies and config).
 >
@@ -167,7 +181,9 @@ uv run twine check --strict dist/*
 
 ## Architecture & Conventions
 
-> [!NOTE] **Canonical Reference:** See [Architecture & Conventions](.github/CONTRIBUTING.md#architecture--conventions) in CONTRIBUTING.md for complete architecture patterns, import conventions, logging guidelines, and security best practices.
+> [!NOTE]
+>
+> **Canonical Reference:** See [Architecture & Conventions](.github/CONTRIBUTING.md#architecture--conventions) in CONTRIBUTING.md for complete architecture patterns, import conventions, logging guidelines, and security best practices.
 
 **Quick summary:**
 

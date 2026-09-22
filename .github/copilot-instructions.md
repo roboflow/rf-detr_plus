@@ -1,6 +1,8 @@
 # RF-DETR+ Copilot Instructions
 
-> [!NOTE] This document is GitHub Copilot-specific guidance. For canonical contribution guidelines (test-driven development, code quality, docstrings, etc.), see [CONTRIBUTING.md](CONTRIBUTING.md). For detailed agent-specific context, see [AGENTS.md](../AGENTS.md).
+> [!NOTE]
+>
+> This document is GitHub Copilot-specific guidance. For canonical contribution guidelines (test-driven development, code quality, docstrings, etc.), see [CONTRIBUTING.md](CONTRIBUTING.md). For detailed agent-specific context, see [AGENTS.md](../AGENTS.md).
 
 ## Repository Overview
 
@@ -29,7 +31,9 @@ uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus --cov-report=
 uv build
 ```
 
-> [!IMPORTANT] Run `uv sync` after pulling changes to update dependencies.
+> [!IMPORTANT]
+>
+> Run `uv sync` after pulling changes to update dependencies.
 
 ## Code Quality
 
