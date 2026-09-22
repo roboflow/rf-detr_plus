@@ -82,7 +82,7 @@ def synthetic_roboflow_dataset(tmp_path: Path) -> Path:
         annotations = []
         for idx in range(num_images):
             file_name = f"{idx}.jpg"
-            pixels = np.random.randint(0, 255, (image_size, image_size, 3), dtype=np.uint8)
+            pixels = np.full((image_size, image_size, 3), idx, dtype=np.uint8)
             PIL.Image.fromarray(pixels).save(split_dir / file_name)
             images.append({"id": idx, "file_name": file_name, "width": image_size, "height": image_size})
             annotations.append(

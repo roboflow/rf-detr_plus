@@ -19,8 +19,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
-import rfdetr as _rfdetr
 import torch
+from rfdetr import from_checkpoint
 from rfdetr.config import ModelConfig, TrainConfig
 
 from rfdetr_plus.models.detection import (
@@ -159,7 +159,7 @@ def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETRXLarge 
     os.close(tmp_fd)
     try:
         torch.save(checkpoint, tmp_path)
-        recovered = _rfdetr.from_checkpoint(tmp_path, accept_platform_model_license=True)
+        recovered = from_checkpoint(tmp_path, accept_platform_model_license=True)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
