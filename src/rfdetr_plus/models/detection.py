@@ -6,7 +6,7 @@
 
 from typing import Any, Literal
 
-from rfdetr.config import ModelConfig
+from rfdetr.config import ModelConfig, PathLikeStr
 from rfdetr.detr import RFDETR
 
 
@@ -24,7 +24,7 @@ class RFDETRXLargeConfig(ModelConfig):
     num_classes: int = 365
     positional_encoding_size: int = 700 // 20
     resolution: int = 700
-    pretrain_weights: str = "rf-detr-xlarge.pth"
+    pretrain_weights: PathLikeStr | None = "rf-detr-xlarge.pth"
     license: str = "PML-1.0"
 
 
@@ -42,7 +42,7 @@ class RFDETR2XLargeConfig(ModelConfig):
     num_classes: int = 365
     positional_encoding_size: int = 880 // 20
     resolution: int = 880
-    pretrain_weights: str = "rf-detr-xxlarge.pth"
+    pretrain_weights: PathLikeStr | None = "rf-detr-xxlarge.pth"
     license: str = "PML-1.0"
 
 
