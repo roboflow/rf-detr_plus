@@ -42,7 +42,7 @@ jobs:
           activate-environment: true
 
       - name: 🚀 Install Packages
-        run: uv sync --group tests --group ci-gpu-pin
+        run: uv sync --group tests
 
       - name: 🧪 Run the Test
         run: |
