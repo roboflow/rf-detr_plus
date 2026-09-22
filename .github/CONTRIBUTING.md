@@ -99,8 +99,7 @@ rf-detr_plus/
 
 - **`.pre-commit-config.yaml`** - Defines pre-commit hooks for code quality
 
-> [!TIP]
-> When contributing, focus on the relevant directory for your change:
+> [!TIP] When contributing, focus on the relevant directory for your change:
 >
 > - Bug fixes/features → `src/rfdetr_plus/` and `tests/`
 > - CI/build issues → `.github/workflows/` or config files
@@ -139,9 +138,7 @@ RF-DETR+ extends the base RF-DETR package with additional model variants.
 
 **Core dependency:**
 
-- `rfdetr>=1.8.0,<2` - Base RF-DETR package. `ModelConfig.compile=True` is a documented no-op
-    below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1; pin ≥1.10.1 if you need it to
-    actually accelerate training.
+- `rfdetr>=1.8.0,<2` - Base RF-DETR package. `ModelConfig.compile=True` is a documented no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1; pin ≥1.10.1 if you need it to actually accelerate training.
 
 **Development groups:**
 
@@ -251,8 +248,7 @@ Tests marked with `@pytest.mark.gpu` are excluded from CPU CI workflows and run 
 
 ### CI Testing
 
-> [!NOTE]
-> **CI Workflows (Source of Truth):** See `.github/workflows/` for exact commands.
+> [!NOTE] **CI Workflows (Source of Truth):** See `.github/workflows/` for exact commands.
 
 Our continuous integration tests run on:
 
@@ -280,8 +276,7 @@ uv run --no-sync pytest tests/test_model.py::test_model_loading
 
 All code must pass linting and formatting checks before being merged. We use **pre-commit hooks** to automate this process.
 
-> [!TIP]
-> Pre-commit hooks will auto-format many issues. If pre-commit fails, review the changes it made and re-stage the files.
+> [!TIP] Pre-commit hooks will auto-format many issues. If pre-commit fails, review the changes it made and re-stage the files.
 
 ### Setting Up Pre-commit
 
@@ -319,8 +314,7 @@ This step is essential before any merge can occur.
 
 For clarity and maintainability, any new functions or classes must include [Google-style docstrings](https://google.github.io/styleguide/pyguide.html) and use Python type hints. Type hints are mandatory in all function definitions, ensuring explicit parameter and return type declarations.
 
-> [!IMPORTANT]
-> Type hints are in the function signature. **Do not duplicate types in docstrings** - describe the parameter's purpose instead.
+> [!IMPORTANT] Type hints are in the function signature. **Do not duplicate types in docstrings** - describe the parameter's purpose instead.
 
 For example:
 
