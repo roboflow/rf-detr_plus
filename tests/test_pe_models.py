@@ -186,3 +186,45 @@ def test_training_updates_the_position_embedding(
     assert isinstance(reloaded, RFDETRAtto)
     assert isinstance(reloaded.model_config, ModelConfig)
     assert reloaded.model_config.encoder == "pe_core_t"
+
+
+def test_backbone_lora_adapts_the_pe_attention(fake_checkpoints: dict[str, Path]) -> None:
+    """``backbone_lora=True`` wraps PE-Core-T's attention qkv projections and trains only the adapters."""
+    pytest.importorskip("peft")
+    model = _load("atto", fake_checkpoints["atto"], backbone_lora=True)
+    network = model.model.model
+
+    encoder_trainable = [name for name, p in network.named_parameters() if ".encoder." in name and p.requires_grad]
+    assert encoder_trainable
+    assert all("lora_" in name and ".attn.qkv." in name for name in encoder_trainable)
+    network.train()
+    images = torch.randn(1, 3, 420, 420)
+    network(NestedTensor(images, torch.zeros(1, 420, 420, dtype=torch.bool)))["pred_logits"].sum().backward()
+    assert all(p.grad is not None for name, p in network.named_parameters() if name in set(encoder_trainable))
+
+
+@pytest.mark.parametrize(
+    ("compile_", "dtype"),
+    [
+        pytest.param(False, torch.float32, id="eager-fp32"),
+        pytest.param(True, torch.float32, id="traced-fp32"),
+        pytest.param(True, torch.bfloat16, id="traced-bf16"),
+    ],
+)
+def test_inference_optimization_matches_eager_predictions(
+    compile_: bool, dtype: torch.dtype, fake_checkpoints: dict[str, Path]
+) -> None:
+    """``RFDETR.inference()`` (export graph, optional TorchScript trace and dtype cast) reproduces eager ``predict``."""
+    model = _load("femto", fake_checkpoints["femto"])
+    image = np.random.default_rng(0).integers(0, 255, (384, 384, 3), dtype=np.uint8)
+    eager = model.predict(image, threshold=0.0)
+
+    model.inference(compile=compile_, dtype=dtype)
+    optimized = model.predict(image, threshold=0.0)
+
+    assert len(optimized) == len(eager)
+    scores, eager_scores = np.sort(optimized.confidence)[::-1], np.sort(eager.confidence)[::-1]
+    if dtype == torch.float32:
+        np.testing.assert_allclose(scores, eager_scores, rtol=0, atol=1e-5)
+    else:
+        np.testing.assert_allclose(scores[:50], eager_scores[:50], rtol=0, atol=1e-2)
