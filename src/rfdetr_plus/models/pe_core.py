@@ -381,7 +381,10 @@ class PECoreEncoder(nn.Module):
         if num_windows > 1:
             cls_token = x[:, :1]
             x, windowed_rope = apply_windowing_with_rope(x[:, 1:], rope, num_windows, patch_size, height, width)
-            x = torch.cat((cls_token.repeat(num_windows_squared, 1, 1), x), dim=1)
+            # repeat_interleave keeps the class-token copies batch-major, matching the window order above (as
+            # rf-detr-internal's develop does); the token is identical across images here, so only backward
+            # summation order depends on it.
+            x = torch.cat((cls_token.repeat_interleave(num_windows_squared, dim=0), x), dim=1)
             windowed_rope = torch.cat(
                 (no_op_rope.unsqueeze(0).unsqueeze(0).expand(num_windows_squared, 1, rope_dim), windowed_rope), dim=1
             )
