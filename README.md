@@ -1,12 +1,12 @@
-# RF-DETR+: Large-Scale Detection Models for RF-DETR
+# RF-DETR+: Platform Detection Models for RF-DETR
 
 [![version](https://badge.fury.io/py/rfdetr-plus.svg)](https://badge.fury.io/py/rfdetr-plus) [![downloads](https://img.shields.io/pypi/dm/rfdetr-plus)](https://pypistats.org/packages/rfdetr-plus) [![python-version](https://img.shields.io/pypi/pyversions/rfdetr-plus)](https://badge.fury.io/py/rfdetr-plus) [![license](https://img.shields.io/badge/license-PML--1.0-blue)](https://github.com/roboflow/rf-detr-plus/blob/main/LICENSE)
 
 [![discord](https://img.shields.io/discord/1159501506232451173?logo=discord&label=discord&labelColor=fff&color=5865f2&link=https%3A%2F%2Fdiscord.gg%2FGbfgXGJ8Bk)](https://discord.gg/GbfgXGJ8Bk) [![Papers with Code leaderboard](https://paperswithcode.co/api/v1/papers/2511.09554/leaderboard-badge.svg?eval=821&live=1)](https://paperswithcode.co/api/v1/papers/2511.09554/leaderboard-badge-link?eval=821)
 
-RF-DETR is the core package in the ecosystem. It provides the full training and inference stack, the {Nano, Small, Medium, Large} model lineup, and the APIs most users build on. RF-DETR+ is an extension package for [RF-DETR](https://github.com/roboflow/rf-detr) that adds the **XLarge** and **2XLarge** detection models for maximum accuracy.
+RF-DETR is the core package in the ecosystem. It provides the full training and inference stack, the {Nano, Small, Medium, Large} model lineup, and the APIs most users build on. RF-DETR+ is an extension package for [RF-DETR](https://github.com/roboflow/rf-detr) that adds the **XLarge** and **2XLarge** detection models for maximum accuracy and the **Atto**, **Femto** and **Pico** detection models for the lowest latency.
 
-RF-DETR+ models use a DINOv2 vision transformer backbone at higher resolutions and larger feature dimensions than the core RF-DETR lineup, pushing state-of-the-art accuracy on [Microsoft COCO](https://cocodataset.org/#home) and [RF100-VL](https://github.com/roboflow/rf100-vl) while retaining real-time inference speeds. Use RF-DETR for the standard model set and RF-DETR+ when you need the highest-accuracy variants.
+RF-DETR+ models use a DINOv2 vision transformer backbone at higher resolutions and larger feature dimensions than the core RF-DETR lineup, pushing state-of-the-art accuracy on [Microsoft COCO](https://cocodataset.org/#home) and [RF100-VL](https://github.com/roboflow/rf100-vl) while retaining real-time inference speeds. Atto, Femto and Pico instead use Meta's [Perception Encoder](https://arxiv.org/abs/2504.13181) PE-Core-T backbone, with architectures selected by neural architecture search, to run in 1-2 ms on a T4. Use RF-DETR for the standard model set and RF-DETR+ when you need the highest-accuracy or the fastest variants.
 
 ## Install
 
@@ -29,10 +29,13 @@ pip install git+https://github.com/roboflow/rf-detr-plus.git
 
 ## Benchmarks
 
-RF-DETR+ XLarge and 2XLarge sit at the top of the RF-DETR accuracy/latency curve, delivering the highest COCO AP scores in the family. All latency numbers were measured on an NVIDIA T4 using TensorRT, FP16, and batch size 1.
+RF-DETR+ XLarge and 2XLarge sit at the top of the RF-DETR accuracy/latency curve, delivering the highest COCO AP scores in the family, while Atto, Femto and Pico extend it below Nano. All latency numbers were measured on an NVIDIA T4 using TensorRT, FP16, and batch size 1.
 
 |  Size  |      Class      | COCO AP<sub>50</sub> | COCO AP<sub>50:95</sub> | RF100VL AP<sub>50</sub> | RF100VL AP<sub>50:95</sub> | Latency (ms) | Params (M) | Resolution |                      Package / License                       |
 | :----: | :-------------: | :------------------: | :---------------------: | :---------------------: | :------------------------: | :----------: | :--------: | :--------: | :----------------------------------------------------------: |
+|  ⭐ A  |  `RFDETRAtto`   |         TBD          |          30.5           |          78.2           |            48.3            |     1.0      |    7.4     |  380x380   |              `rfdetr_plus` / [PML 1.0](LICENSE)              |
+|  ⭐ F  |  `RFDETRFemto`  |         TBD          |          37.8           |          82.5           |            53.8            |     1.4      |    7.9     |  384x384   |              `rfdetr_plus` / [PML 1.0](LICENSE)              |
+|  ⭐ P  |  `RFDETRPico`   |         TBD          |          41.6           |          84.1           |            56.0            |     1.7      |    8.4     |  560x560   |              `rfdetr_plus` / [PML 1.0](LICENSE)              |
 |   N    |  `RFDETRNano`   |         67.6         |          48.4           |          85.0           |            57.7            |     2.3      |    30.5    |  384x384   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
 |   S    |  `RFDETRSmall`  |         72.1         |          53.0           |          86.7           |            60.2            |     3.5      |    32.1    |  512x512   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |
 |   M    | `RFDETRMedium`  |         73.6         |          54.7           |          87.4           |            61.2            |     4.4      |    33.7    |  576x576   | [`rfdetr`](https://github.com/roboflow/rf-detr) / Apache 2.0 |

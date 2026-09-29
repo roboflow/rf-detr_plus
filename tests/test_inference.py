@@ -22,7 +22,7 @@ from rfdetr.training.callbacks.coco_eval import COCOEvalCallback
 from rfdetr.utilities.tensors import collate_fn
 from torchmetrics.detection import MeanAveragePrecision
 
-from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
+from rfdetr_plus import RFDETR2XLarge, RFDETRAtto, RFDETRFemto, RFDETRPico, RFDETRXLarge
 
 
 @pytest.mark.parametrize(
@@ -32,6 +32,15 @@ from rfdetr_plus import RFDETR2XLarge, RFDETRXLarge
         pytest.param(RFDETR2XLarge, 0.7, 0.7, 20, id="2xlarge-CPU"),
         pytest.param(RFDETRXLarge, 0.77, 0.73, 500, marks=pytest.mark.gpu, id="xlarge-GPU"),
         pytest.param(RFDETR2XLarge, 0.78, 0.74, 500, marks=pytest.mark.gpu, id="2xlarge-GPU"),
+        # PE-Core-T thresholds sit ~0.02 below values measured on CPU with the release weights (20 images: Atto
+        # 0.665/0.581, Femto 0.679/0.621, Pico 0.700/0.657; 500 images: Atto 0.531/0.534). Femto and Pico reuse
+        # Atto's 500-image floor until measured on GPU (they are more accurate, so it is a safe lower bound).
+        pytest.param(RFDETRAtto, 0.64, 0.56, 20, id="atto-CPU"),
+        pytest.param(RFDETRFemto, 0.65, 0.60, 20, id="femto-CPU"),
+        pytest.param(RFDETRPico, 0.68, 0.63, 20, id="pico-CPU"),
+        pytest.param(RFDETRAtto, 0.51, 0.51, 500, marks=pytest.mark.gpu, id="atto-GPU"),
+        pytest.param(RFDETRFemto, 0.51, 0.51, 500, marks=pytest.mark.gpu, id="femto-GPU"),
+        pytest.param(RFDETRPico, 0.51, 0.51, 500, marks=pytest.mark.gpu, id="pico-GPU"),
     ],
 )
 def test_coco_detection_inference_benchmark(
@@ -42,7 +51,7 @@ def test_coco_detection_inference_benchmark(
     threshold_f1: float,
     num_samples: int | None,
 ) -> None:
-    """Benchmark COCO detection inference for RF-DETR+ XLarge and 2XLarge models.
+    """Benchmark COCO detection inference for the RF-DETR+ models.
 
     This GPU-marked test runs inference on the COCO val2017 split using the
     specified RF-DETR+ detection model, computes COCO metrics via the base
@@ -169,6 +178,12 @@ def test_coco_detection_inference_benchmark(
         pytest.param(RFDETR2XLarge, 880, {}, id="2xlarge"),
         pytest.param(RFDETRXLarge, 700, {"compile": True}, id="xlarge-compile"),
         pytest.param(RFDETR2XLarge, 880, {"compile": True}, id="2xlarge-compile"),
+        pytest.param(RFDETRAtto, 380, {}, id="atto"),
+        pytest.param(RFDETRFemto, 384, {}, id="femto"),
+        pytest.param(RFDETRPico, 560, {}, id="pico"),
+        pytest.param(RFDETRAtto, 380, {"compile": True}, id="atto-compile"),
+        pytest.param(RFDETRFemto, 384, {"compile": True}, id="femto-compile"),
+        pytest.param(RFDETRPico, 560, {"compile": True}, id="pico-compile"),
     ],
 )
 def test_model_inference(model_class: type[RFDETR], resolution: int, extra_kwargs: dict[str, bool]) -> None:
