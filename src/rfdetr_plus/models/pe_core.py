@@ -216,7 +216,7 @@ class PECoreEncoder(nn.Module):
         self.model.attn_pool = None
         self.model.head = nn.Identity()
         self.model.global_pool = ""
-        # Patch-embed to an NHWC grid at any input size; `_pos_embed` then resamples pos_embed to that grid.
+        # Patch-embed any input size to an NHWC grid; the forward adds (and if needed resamples) the position embedding.
         self.model.dynamic_img_size = True
         self.model.patch_embed.strict_img_size = False
         self.model.patch_embed.output_fmt = Format.NHWC
@@ -300,8 +300,8 @@ class PECoreEncoder(nn.Module):
 
         - A ``pos_embed`` saved at another position grid is resampled to this encoder's grid, as ``rfdetr`` does for
           DINOv2 position embeddings when ``resolution`` (and with it ``positional_encoding_size``) differs.
-        - PE-CLIP attention-pool / head weights (still present in rf-detr-internal checkpoints) are dropped: this
-          encoder never runs them.
+        - PE-CLIP attention-pool / head weights, present in PE-Core-T CLIP checkpoints, are dropped: this encoder never
+          runs them.
         - A patch-embedding kernel of another patch size is rejected with a clear error.
 
         Raises:
@@ -381,9 +381,8 @@ class PECoreEncoder(nn.Module):
         if num_windows > 1:
             cls_token = x[:, :1]
             x, windowed_rope = apply_windowing_with_rope(x[:, 1:], rope, num_windows, patch_size, height, width)
-            # repeat_interleave keeps the class-token copies batch-major, matching the window order above (as
-            # rf-detr-internal's develop does); the token is identical across images here, so only backward
-            # summation order depends on it.
+            # repeat_interleave keeps the class-token copies batch-major, matching the window order above; the token
+            # is identical across images here, so only backward summation order depends on it.
             x = torch.cat((cls_token.repeat_interleave(num_windows_squared, dim=0), x), dim=1)
             windowed_rope = torch.cat(
                 (no_op_rope.unsqueeze(0).unsqueeze(0).expand(num_windows_squared, 1, rope_dim), windowed_rope), dim=1

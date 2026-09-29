@@ -123,9 +123,8 @@ class TestPECoreEncoder:
     def test_off_resolution_forward_leaves_state_untouched(self) -> None:
         """A forward at another resolution must not replace or resample any parameter or buffer.
 
-        rf-detr-internal resized the trunk in place (timm ``set_input_size``) for such inputs, which swapped
-        ``pos_embed`` for a new Parameter outside the optimizer and resampled it down and back up on every
-        multi-scale step.
+        Resizing the trunk in place (timm ``set_input_size``) would swap ``pos_embed`` for a new Parameter outside the
+        optimizer and resample it down and back up on every multi-scale step.
         """
         encoder = _encoder(patch_size=20, num_windows=2, grid=8).train()
         pos_embed = encoder.model.pos_embed
@@ -241,8 +240,8 @@ class TestPECoreEncoder:
         with pytest.raises(RuntimeError, match="already exported"):
             encoder.set_export_shape((240, 240))
 
-    def test_rf_detr_internal_clip_head_keys_are_ignored(self) -> None:
-        """rf-detr-internal checkpoints still carry PE-CLIP's attention-pool head; loading them strictly succeeds."""
+    def test_clip_head_keys_are_ignored(self) -> None:
+        """Checkpoints that still carry PE-CLIP's attention-pool head load strictly."""
         encoder = _encoder()
         state = encoder.state_dict()
         state["model.attn_pool.latent"] = torch.zeros(1, 1, 192)

@@ -182,8 +182,8 @@ def test_training_updates_the_position_embedding(
     )
 
     pos_embed_after = model.model.model.state_dict()[_POS_EMBED_KEY]
-    # Trained (it moved) but not resampled in place: rf-detr-internal's in-place resize changed it by ~20% within the
-    # first off-resolution steps; one optimizer step at the embedding's decayed learning rate moves it far less.
+    # Trained (it moved) but not resampled in place: an in-place resize changes it by ~20% within the first
+    # off-resolution steps; one optimizer step at the embedding's decayed learning rate moves it far less.
     assert not torch.equal(pos_embed_after, pos_embed_before)
     assert float((pos_embed_after - pos_embed_before).norm() / pos_embed_before.norm()) < 0.01
     checkpoints = sorted(tmp_path.glob("checkpoint*.pth"))
