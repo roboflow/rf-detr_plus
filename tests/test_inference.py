@@ -32,15 +32,15 @@ from rfdetr_plus import RFDETR2XLarge, RFDETRAtto, RFDETRFemto, RFDETRPico, RFDE
         pytest.param(RFDETR2XLarge, 0.7, 0.7, 20, id="2xlarge-CPU"),
         pytest.param(RFDETRXLarge, 0.77, 0.73, 500, marks=pytest.mark.gpu, id="xlarge-GPU"),
         pytest.param(RFDETR2XLarge, 0.78, 0.74, 500, marks=pytest.mark.gpu, id="2xlarge-GPU"),
-        # PE-Core-T thresholds sit ~0.02 below values measured on CPU with the release weights (20 images: Atto
-        # 0.665/0.581, Femto 0.679/0.621, Pico 0.700/0.657; 500 images: Atto 0.531/0.534). Femto and Pico reuse
-        # Atto's 500-image floor until measured on GPU (they are more accurate, so it is a safe lower bound).
+        # PE-Core-T thresholds sit ~0.02 below values measured with the hosted release weights (20 images: Atto
+        # 0.665/0.581, Femto 0.679/0.621, Pico 0.700/0.657; 500 images on a T4: Atto 0.531/0.534, Femto 0.595/0.589,
+        # Pico 0.626/0.611).
         pytest.param(RFDETRAtto, 0.64, 0.56, 20, id="atto-CPU"),
         pytest.param(RFDETRFemto, 0.65, 0.60, 20, id="femto-CPU"),
         pytest.param(RFDETRPico, 0.68, 0.63, 20, id="pico-CPU"),
         pytest.param(RFDETRAtto, 0.51, 0.51, 500, marks=pytest.mark.gpu, id="atto-GPU"),
-        pytest.param(RFDETRFemto, 0.51, 0.51, 500, marks=pytest.mark.gpu, id="femto-GPU"),
-        pytest.param(RFDETRPico, 0.51, 0.51, 500, marks=pytest.mark.gpu, id="pico-GPU"),
+        pytest.param(RFDETRFemto, 0.57, 0.56, 500, marks=pytest.mark.gpu, id="femto-GPU"),
+        pytest.param(RFDETRPico, 0.60, 0.59, 500, marks=pytest.mark.gpu, id="pico-GPU"),
     ],
 )
 def test_coco_detection_inference_benchmark(
