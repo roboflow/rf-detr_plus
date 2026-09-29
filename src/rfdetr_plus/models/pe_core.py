@@ -111,6 +111,22 @@ def undo_windowing(x: Tensor, num_windows: int, patch_size: int, height: int, wi
     return x.reshape(batch, tokens_per_window * num_windows_squared, channels)
 
 
+@torch.compiler.disable
+def _resample_pos_embed(pos_embed: Tensor, grid: tuple[int, int], stored_grid: tuple[int, int]) -> Tensor:
+    """Resample a ``(1, 1 + H * W, C)`` position embedding (class token first) from *stored_grid* to *grid*.
+
+    Kept out of ``torch.compile`` graphs, like rfdetr's DINOv2 position-embedding interpolation: every new input size
+    would otherwise recompile the encoder. Antialiasing is off on MPS, which has no antialiased bicubic kernel.
+    """
+    return resample_abs_pos_embed(
+        pos_embed,
+        new_size=list(grid),
+        old_size=list(stored_grid),
+        num_prefix_tokens=1,
+        antialias=pos_embed.device.type != "mps",
+    )
+
+
 def get_pe_lr_decay_rate(name: str, lr_decay_rate: float = 1.0, num_layers: int = 12) -> float:
     """Layer-wise learning-rate decay multiplier for a PE-Core-T (timm naming) parameter.
 
@@ -160,9 +176,10 @@ def get_pe_weight_decay_rate(name: str, weight_decay_rate: float = 1.0) -> float
 class PECoreEncoder(nn.Module):
     """PE-Core-T trunk returning windowed-attention feature maps at ``out_feature_indexes``.
 
-    Inputs at any resolution divisible by ``patch_size * num_windows`` are accepted. The position embedding is resampled
-    to the input's patch grid and RoPE is rebuilt for it inside the forward pass; parameters and buffers are never
-    modified, so multi-scale training keeps optimizing the original ``pos_embed``.
+    Inputs at any resolution divisible by ``patch_size * num_windows`` are accepted, square or not. The position
+    embedding is resampled to the input's patch grid and RoPE is rebuilt for it inside the forward pass; parameters and
+    buffers are never modified, so multi-scale training keeps optimizing the original ``pos_embed``. Stochastic depth
+    follows timm's build-time ``drop_path`` schedule; rfdetr's per-step drop-path schedule does not reach timm blocks.
 
     Args:
         out_feature_indexes: Blocks whose outputs are returned; these blocks use full (unwindowed) attention.
@@ -217,6 +234,7 @@ class PECoreEncoder(nn.Module):
         self._out_feature_channels = [self.model.embed_dim] * len(self.out_feature_indexes)
         self._export = False
 
+    @torch.compiler.disable
     def rope_for_grid(self, grid_h: int, grid_w: int) -> Tensor:
         """RoPE rows ``(grid_h * grid_w, D)`` for a patch grid, without touching the cached rows.
 
@@ -237,15 +255,24 @@ class PECoreEncoder(nn.Module):
 
         Args:
             shape: ``(height, width)`` the graph is exported at.
+
+        Raises:
+            RuntimeError: If the encoder was already exported for a different shape.
         """
-        self.shape = tuple(shape)
+        shape = tuple(shape)
+        if self._export and shape != self.shape:
+            raise RuntimeError(
+                f"This PE-Core-T encoder is already exported for shape {self.shape}; export a fresh copy of the model "
+                f"for shape {shape}."
+            )
+        self.shape = shape
         self.export()
 
     def export(self) -> None:
         """Bake the position embedding and RoPE for ``shape`` so the traced forward never resamples.
 
-        timm's runtime pos_embed resampling uses antialiased bicubic interpolation, which ONNX cannot express. Eager
-        use after ``export()`` sees the model in its baked, export-time configuration. Idempotent.
+        Runtime pos_embed resampling uses antialiased bicubic interpolation, which ONNX cannot express. Eager use after
+        ``export()`` sees the model in its baked, export-time configuration. Idempotent.
         """
         if self._export:
             return
@@ -253,9 +280,7 @@ class PECoreEncoder(nn.Module):
         stored_grid = tuple(self.model.patch_embed.grid_size)
         if grid != stored_grid:
             with torch.no_grad():
-                pos_embed = resample_abs_pos_embed(
-                    self.model.pos_embed, new_size=grid, old_size=stored_grid, num_prefix_tokens=1
-                )
+                pos_embed = _resample_pos_embed(self.model.pos_embed, grid, stored_grid)
             self.model.pos_embed = nn.Parameter(pos_embed)
             self.model.patch_embed.grid_size = grid
             self.model.rope.update_feat_shape(grid)
@@ -271,11 +296,28 @@ class PECoreEncoder(nn.Module):
         unexpected_keys: list[str],
         error_msgs: list[str],
     ) -> None:
-        """Resample a checkpoint ``pos_embed`` saved at another position grid to this encoder's grid.
+        """Adapt a checkpoint to this encoder before loading it.
 
-        Mirrors what ``rfdetr`` does for DINOv2 position embeddings when ``resolution`` (and with it
-        ``positional_encoding_size``) differs from the checkpoint's.
+        - A ``pos_embed`` saved at another position grid is resampled to this encoder's grid, as ``rfdetr`` does for
+          DINOv2 position embeddings when ``resolution`` (and with it ``positional_encoding_size``) differs.
+        - PE-CLIP attention-pool / head weights (still present in rf-detr-internal checkpoints) are dropped: this
+          encoder never runs them.
+        - A patch-embedding kernel of another patch size is rejected with a clear error.
+
+        Raises:
+            ValueError: If the checkpoint's patch size differs from this encoder's.
         """
+        unused_head = (f"{prefix}model.attn_pool.", f"{prefix}model.head.")
+        for unused_key in [k for k in state_dict if k.startswith(unused_head)]:
+            del state_dict[unused_key]
+        kernel = state_dict.get(f"{prefix}model.patch_embed.proj.weight")
+        own_kernel = self.model.patch_embed.proj.weight
+        if isinstance(kernel, Tensor) and kernel.shape != own_kernel.shape:
+            raise ValueError(
+                f"The checkpoint's PE-Core-T patch embedding {tuple(kernel.shape)} does not match this encoder's "
+                f"{tuple(own_kernel.shape)}: it was trained with patch_size={kernel.shape[-1]}, but the model is "
+                f"configured with patch_size={self.patch_size}. Keep the default patch_size to load these weights."
+            )
         key = f"{prefix}model.pos_embed"
         incoming = state_dict.get(key)
         own = self.model.pos_embed
@@ -283,9 +325,7 @@ class PECoreEncoder(nn.Module):
             src_side = math.isqrt(incoming.shape[1] - 1)
             if src_side * src_side + 1 == incoming.shape[1] and incoming.shape[2] == own.shape[2]:
                 grid = tuple(self.model.patch_embed.grid_size)
-                state_dict[key] = resample_abs_pos_embed(
-                    incoming, new_size=grid, old_size=(src_side, src_side), num_prefix_tokens=1
-                )
+                state_dict[key] = _resample_pos_embed(incoming, grid, (src_side, src_side))
                 logger.debug("Resampled %s from a %dx%d to a %dx%d grid.", key, src_side, src_side, *grid)
         super()._load_from_state_dict(
             state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
@@ -315,10 +355,17 @@ class PECoreEncoder(nn.Module):
         grid_h, grid_w = height // patch_size, width // patch_size
         take_indices, max_index = feature_take_indices(len(model.blocks), self.out_feature_indexes)
 
-        x = model.patch_embed(x)
-        # timm resamples pos_embed to the input grid here; its RoPE output is ignored because timm's `get_embed`
-        # returns the cached rows for any grid.
-        x, _ = model._pos_embed(x)
+        # Class token + position embedding, as timm's `_pos_embed` does, but resampling only when the grid differs
+        # from the stored one: timm also resamples non-square grids of the stored size, which would put antialiased
+        # bicubic interpolation into a baked non-square export graph. RoPE is rebuilt here too because timm's
+        # `get_embed` returns the cached rows for any grid.
+        x = model.patch_embed(x).reshape(batch, grid_h * grid_w, -1)
+        pos_embed = model.pos_embed
+        stored_grid = tuple(model.patch_embed.grid_size)
+        if (grid_h, grid_w) != stored_grid:
+            pos_embed = _resample_pos_embed(pos_embed, (grid_h, grid_w), stored_grid)
+        x = torch.cat((model.cls_token.expand(batch, -1, -1), x), dim=1) + pos_embed
+        x = model.pos_drop(x)
         rope = self.rope_for_grid(grid_h, grid_w)
         x = model.norm_pre(x)
 

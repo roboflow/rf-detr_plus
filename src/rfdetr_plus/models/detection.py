@@ -6,7 +6,7 @@
 
 from typing import Any, Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from rfdetr.config import ModelConfig
 
 try:
@@ -86,7 +86,7 @@ class RFDETRPECoreTConfig(ModelConfig):
     sa_nheads: int = 4
     ca_nheads: int = 8
     dec_n_points: int = 2
-    dim_feedforward: int = 1024
+    dim_feedforward: int = Field(default=1024, ge=1)
     projector_scale: list[Literal["P4",]] = ["P4"]
     out_feature_indexes: list[int] = [2, 5, 8, 11]
     license: str = "PML-1.0"

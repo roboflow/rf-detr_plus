@@ -117,6 +117,8 @@ def _prepared_export_graph(model: RFDETR, shape: tuple[int, int]):
         pytest.param("atto", (440, 440), id="atto-440"),
         pytest.param("femto", None, id="femto-native"),
         pytest.param("pico", (480, 480), id="pico-480"),
+        pytest.param("femto", (384, 640), id="femto-384x640"),
+        pytest.param("pico", (480, 640), id="pico-480x640"),
     ],
 )
 def test_export_graph_traces_without_runtime_resampling(
@@ -179,7 +181,11 @@ def test_training_updates_the_position_embedding(
         eval_backend="faster_coco_eval",  # any COCO backend works here; this one ships in rfdetr[train]
     )
 
-    assert not torch.equal(model.model.model.state_dict()[_POS_EMBED_KEY], pos_embed_before)
+    pos_embed_after = model.model.model.state_dict()[_POS_EMBED_KEY]
+    # Trained (it moved) but not resampled in place: rf-detr-internal's in-place resize changed it by ~20% within the
+    # first off-resolution steps; one optimizer step at the embedding's decayed learning rate moves it far less.
+    assert not torch.equal(pos_embed_after, pos_embed_before)
+    assert float((pos_embed_after - pos_embed_before).norm() / pos_embed_before.norm()) < 0.01
     checkpoints = sorted(tmp_path.glob("checkpoint*.pth"))
     assert checkpoints
     reloaded = from_checkpoint(str(checkpoints[-1]))

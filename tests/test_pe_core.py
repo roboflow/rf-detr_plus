@@ -218,15 +218,60 @@ class TestPECoreEncoder:
         assert tuple(encoder.model.pos_embed.shape) == (1, 1 + 12 * 12, 192)
         assert all(torch.equal(a, b) for a, b in zip(eager, exported))
 
-    def test_gradient_checkpointing_matches_plain_backward(self) -> None:
+    def test_export_bakes_a_non_square_shape(self) -> None:
+        """A non-square export shape must trace without runtime resampling, and match eager at that shape."""
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8).eval()
+        images = torch.randn(1, 3, 160, 240)
+        with torch.no_grad():
+            eager = encoder(images)
+
+        encoder.set_export_shape((160, 240))
+        with torch.no_grad():
+            traced = torch.jit.trace(encoder, images, check_trace=False)
+            exported = traced(images)
+
+        assert "upsample_bicubic2d" not in str(traced.inlined_graph)
+        assert all(torch.equal(a, b) for a, b in zip(eager, exported))
+
+    def test_second_export_shape_is_rejected(self) -> None:
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8)
+        encoder.set_export_shape((160, 160))
+        encoder.set_export_shape((160, 160))
+
+        with pytest.raises(RuntimeError, match="already exported"):
+            encoder.set_export_shape((240, 240))
+
+    def test_rf_detr_internal_clip_head_keys_are_ignored(self) -> None:
+        """rf-detr-internal checkpoints still carry PE-CLIP's attention-pool head; loading them strictly succeeds."""
+        encoder = _encoder()
+        state = encoder.state_dict()
+        state["model.attn_pool.latent"] = torch.zeros(1, 1, 192)
+        state["model.head.weight"] = torch.zeros(512, 192)
+
+        encoder.load_state_dict(state, strict=True)
+
+    def test_other_patch_size_checkpoint_raises_a_clear_error(self) -> None:
+        state = _encoder(patch_size=20, grid=8).state_dict()
+
+        with pytest.raises(ValueError, match=r"patch_size=20.*patch_size=16"):
+            _encoder(patch_size=16, grid=8).load_state_dict(state)
+
+    def test_gradient_checkpointing_matches_plain_backward(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import rfdetr_plus.models.pe_core as pe_core
+
         torch.manual_seed(0)
         plain = _encoder(patch_size=20, num_windows=2, grid=8).train()
         checkpointed = _encoder(patch_size=20, num_windows=2, grid=8, gradient_checkpointing=True).train()
         checkpointed.load_state_dict(plain.state_dict())
         images = torch.randn(1, 3, 160, 160)
+        calls = []
+        original_checkpoint = pe_core.checkpoint
+        monkeypatch.setattr(pe_core, "checkpoint", lambda *a, **k: calls.append(1) or original_checkpoint(*a, **k))
 
         for encoder in (plain, checkpointed):
             sum(f.square().sum() for f in encoder(images)).backward()
+
+        assert len(calls) == len(checkpointed.model.blocks)  # only the checkpointed encoder, once per block
 
         for (name, a), (_, b) in zip(plain.named_parameters(), checkpointed.named_parameters()):
             assert (a.grad is None) == (b.grad is None), name
