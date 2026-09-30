@@ -36,7 +36,9 @@ keywords = ["machine-learning", "deep-learning", "vision", "ML", "DL", "AI", "DE
 
 dependencies = [
     # 1.12.0 adds the backbone registry, ModelConfig.dim_feedforward and the export-shape hook the PE-Core-T models use.
-    "rfdetr>=1.12.0,<2",
+    # Temporary: [tool.uv.sources] builds rfdetr from the rf-detr PR branch (still versioned 1.11.0) until 1.12.0 is on
+    # PyPI. Restore ">=1.12.0" and remove [tool.uv.sources] before merging.
+    "rfdetr>=1.11.0,<2",
     # PE-Core-T trunk (vit_pe_core_tiny_patch16_384) for RFDETRAtto / RFDETRFemto / RFDETRPico.
     "timm>=1.0.27,<2",
 ]
@@ -61,6 +63,10 @@ tests = [
   "pytest-xdist>=3.8.0,<4",
   "rfdetr[train]",
 ]
+
+[tool.uv.sources]
+# Temporary: test against roboflow/rf-detr#1568 until it is released as rfdetr 1.12.0.
+rfdetr = { git = "https://github.com/roboflow/rf-detr", branch = "feat/plus-rfdetr-atto-femto-pico" }
 
 [project.urls]
 Homepage = "https://github.com/roboflow/rf-detr-plus"
