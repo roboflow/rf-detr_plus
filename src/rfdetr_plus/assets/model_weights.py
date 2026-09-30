@@ -7,7 +7,7 @@
 """
 RF-DETR+ Model weights registry.
 
-Provides ModelWeights enum for platform-licensed large-scale models,
+Provides ModelWeights enum for platform-licensed models,
 compatible with rf-detr's asset structure introduced in version 1.4.3.
 """
 
@@ -44,6 +44,24 @@ class ModelWeights(ModelWeightsBase):
         "rf-detr-xxlarge.pth",
         "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-xxlarge.pth",
         "e3204689c1f0280427e4c33e6a2ac6cd",
+    )
+
+    # Platform-Licensed Real-Time Detection Models (Atto, Femto and Pico, PE-Core-T backbone)
+    # These models are subject to the Platform Model License 1.0
+    RF_DETR_ATTO = ModelWeightAsset(
+        "rf-detr-atto.pth",
+        "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-atto.pth",
+        "89e793e6246ac5808e2f2769ae9b4fe0",
+    )
+    RF_DETR_FEMTO = ModelWeightAsset(
+        "rf-detr-femto.pth",
+        "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-femto.pth",
+        "f1265b9cf62c8d30ae94918b794ac69e",
+    )
+    RF_DETR_PICO = ModelWeightAsset(
+        "rf-detr-pico.pth",
+        "https://storage.googleapis.com/rfdetr/platform-licensed/rf-detr-pico.pth",
+        "ab8da50b62f1f6b3ed234e1292139b72",
     )
 
     # All methods inherited from ModelWeightsBase:

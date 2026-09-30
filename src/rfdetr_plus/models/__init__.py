@@ -5,11 +5,30 @@
 # ------------------------------------------------------------------------
 """RF-DETR+ model definitions."""
 
-from rfdetr_plus.models.detection import RFDETR2XLarge, RFDETR2XLargeConfig, RFDETRXLarge, RFDETRXLargeConfig
+from rfdetr_plus.models.detection import (
+    RFDETR2XLarge,
+    RFDETR2XLargeConfig,
+    RFDETRAtto,
+    RFDETRAttoConfig,
+    RFDETRFemto,
+    RFDETRFemtoConfig,
+    RFDETRPECoreTConfig,
+    RFDETRPico,
+    RFDETRPicoConfig,
+    RFDETRXLarge,
+    RFDETRXLargeConfig,
+)
 
 __all__ = [
     "RFDETR2XLarge",
     "RFDETR2XLargeConfig",
+    "RFDETRAtto",
+    "RFDETRAttoConfig",
+    "RFDETRFemto",
+    "RFDETRFemtoConfig",
+    "RFDETRPECoreTConfig",
+    "RFDETRPico",
+    "RFDETRPicoConfig",
     "RFDETRXLarge",
     "RFDETRXLargeConfig",
 ]
