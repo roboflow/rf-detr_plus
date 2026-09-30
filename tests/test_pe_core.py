@@ -9,6 +9,7 @@ All encoders here are built from timm's architecture without pretrained weights,
 """
 
 import copy
+import io
 from argparse import Namespace
 
 import pytest
@@ -20,6 +21,7 @@ from rfdetr_plus.models.pe_core import (
     PE_CORE_T_ENCODER,
     PECoreBackbone,
     PECoreEncoder,
+    _export_attention_forward,
     apply_windowing_with_rope,
     get_pe_lr_decay_rate,
     get_pe_weight_decay_rate,
@@ -231,6 +233,41 @@ class TestPECoreEncoder:
 
         assert "upsample_bicubic2d" not in str(traced.inlined_graph)
         assert all(torch.equal(a, b) for a, b in zip(eager, exported))
+
+    @pytest.mark.parametrize("num_windows", [1, 2])
+    def test_export_attention_changes_only_the_exported_copy(self, num_windows: int) -> None:
+        """``export()`` swaps in the export attention on the copy being exported; the eager model keeps timm's."""
+        encoder = _encoder(patch_size=20, num_windows=num_windows, grid=8).eval()
+        images = torch.randn(2, 3, 160, 160)
+        with torch.no_grad():
+            eager = encoder(images)
+
+        exported_copy = copy.deepcopy(encoder)
+        exported_copy.export()
+        with torch.no_grad():
+            exported = exported_copy(images)
+
+        assert all("forward" not in block.attn.__dict__ for block in encoder.model.blocks)
+        assert all(block.attn.forward.__func__ is _export_attention_forward for block in exported_copy.model.blocks)
+        assert all(torch.equal(a, b) for a, b in zip(eager, exported))
+
+    def test_export_graph_has_no_empty_tensors(self) -> None:
+        """timm's RoPE concat with an empty prefix slice is gone from export graphs: onnx2tf (TFLite) misreads it."""
+        onnx = pytest.importorskip("onnx")
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8).eval()
+        encoder.export()
+        buffer = io.BytesIO()
+        torch.onnx.export(encoder, (torch.randn(1, 3, 160, 160),), buffer, opset_version=17, dynamo=False)
+
+        graph = onnx.shape_inference.infer_shapes(onnx.load_from_string(buffer.getvalue())).graph
+        dims = {value.name: value.type.tensor_type.shape.dim for value in graph.value_info}
+        # Data tensors only: 1-D shape vectors from shape arithmetic may legitimately be empty.
+        empty = [
+            name
+            for name, shape in dims.items()
+            if len(shape) >= 2 and any(dim.HasField("dim_value") and dim.dim_value == 0 for dim in shape)
+        ]
+        assert not empty
 
     def test_second_export_shape_is_rejected(self) -> None:
         encoder = _encoder(patch_size=20, num_windows=2, grid=8)

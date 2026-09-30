@@ -16,14 +16,17 @@ Importing this module registers :class:`PECoreBackbone` with ``rfdetr`` for ``Mo
 from __future__ import annotations
 
 import math
+import types
 from typing import Any
 
 import timm
 import torch
+import torch.nn.functional as F
 from rfdetr.models.backbone import register_backbone
 from rfdetr.models.backbone.backbone import Backbone
 from rfdetr.utilities.logger import get_logger
-from timm.layers import Format, resample_abs_pos_embed
+from timm.layers import Format, apply_rot_embed_cat, resample_abs_pos_embed
+from timm.layers.attention import AttentionRope
 from timm.models._features import feature_take_indices
 from torch import Tensor, nn
 from torch.utils.checkpoint import checkpoint
@@ -109,6 +112,33 @@ def undo_windowing(x: Tensor, num_windows: int, patch_size: int, height: int, wi
     x = x.view(batch, num_windows, num_windows, num_h_patches_per_window, num_w_patches_per_window, channels)
     x = x.permute(0, 1, 3, 2, 4, 5)
     return x.reshape(batch, tokens_per_window * num_windows_squared, channels)
+
+
+def _export_attention_forward(
+    self: AttentionRope,
+    x: Tensor,
+    rope: Tensor | None = None,
+    attn_mask: Tensor | None = None,
+    is_causal: bool = False,
+) -> Tensor:
+    """timm's ``AttentionRope.forward`` for export graphs, applying RoPE to every token directly.
+
+    timm applies RoPE as ``cat([q[:, :, :npt], rope(q[:, :, npt:])], dim=2)``. This encoder sets ``npt`` to 0 (the class
+    token has a no-op RoPE row instead), which makes the first operand an empty slice: an identity in PyTorch, but
+    onnx2tf (``format="tflite"``) reads it as the whole tensor and doubles the token axis. The values are unchanged.
+    """
+    B, N, _ = x.shape
+    q, k, v = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4).unbind(0)
+    q, k = self.q_norm(q), self.k_norm(k)
+    if rope is not None:
+        half = getattr(self, "rotate_half", False)
+        q = apply_rot_embed_cat(q, rope, half=half).type_as(v)
+        k = apply_rot_embed_cat(k, rope, half=half).type_as(v)
+    x = F.scaled_dot_product_attention(
+        q, k, v, attn_mask=attn_mask, dropout_p=self.attn_drop.p if self.training else 0.0, is_causal=is_causal
+    )
+    x = x.transpose(1, 2).reshape(B, N, self.attn_dim)
+    return self.proj_drop(self.proj(self.norm(x)))
 
 
 @torch.compiler.disable
@@ -271,8 +301,9 @@ class PECoreEncoder(nn.Module):
     def export(self) -> None:
         """Bake the position embedding and RoPE for ``shape`` so the traced forward never resamples.
 
-        Runtime pos_embed resampling uses antialiased bicubic interpolation, which ONNX cannot express. Eager use after
-        ``export()`` sees the model in its baked, export-time configuration. Idempotent.
+        Runtime pos_embed resampling uses antialiased bicubic interpolation, which ONNX cannot express. Attention also
+        switches to :func:`_export_attention_forward`, which computes the same values with a graph onnx2tf converts.
+        Eager use after ``export()`` sees the model in its baked, export-time configuration. Idempotent.
         """
         if self._export:
             return
@@ -284,6 +315,10 @@ class PECoreEncoder(nn.Module):
             self.model.pos_embed = nn.Parameter(pos_embed)
             self.model.patch_embed.grid_size = grid
             self.model.rope.update_feat_shape(grid)
+        for block in self.model.blocks:
+            attn = block.attn
+            if type(attn) is AttentionRope and attn.qkv is not None and attn.fused_attn and not attn.num_prefix_tokens:
+                attn.forward = types.MethodType(_export_attention_forward, attn)
         self._export = True
 
     def _load_from_state_dict(
