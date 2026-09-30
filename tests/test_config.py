@@ -177,10 +177,8 @@ def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETR]) -> N
     """
     model_instance = model_cls(pretrain_weights=None, accept_platform_model_license=True)
     num_classes = model_instance.model.args.num_classes
-    # A fine-tuned checkpoint records the release file it started from as pretrain_weights.
-    release_file = model_cls._model_config_class.model_fields["pretrain_weights"].default
     checkpoint = {
-        "args": argparse.Namespace(pretrain_weights=release_file, num_classes=num_classes),
+        "args": argparse.Namespace(pretrain_weights=f"{model_cls.size}.pth", num_classes=num_classes),
         "model": model_instance.model.model.state_dict(),
     }
 
