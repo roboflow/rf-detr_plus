@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- XLarge and 2XLarge weights download from `https://rfdetr.roboflowstatic.com`, a CDN in front of the same files, instead of `https://storage.googleapis.com/rfdetr`. Object paths and MD5 hashes are unchanged, so weights already in the cache are not downloaded again. A network that only allows listed hosts needs to allow the new one; the old URLs keep working for earlier releases.
+
 ## 1.1.0 — 2026-09-22
 
 ### Changed
