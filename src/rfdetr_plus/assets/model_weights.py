@@ -30,19 +30,19 @@ class ModelWeights(ModelWeightsBase):
         >>> asset.filename
         'rf-detr-xlarge.pth'
         >>> asset.url
-        'https://rfdetr.roboflowstatic.com/platform-licensed/rf-detr-xlarge.pth'
+        'https://repo.roboflow.com/rfdetr/platform-licensed/rf-detr-xlarge.pth'
     """
 
     # Platform-Licensed Detection Models (XLarge and 2XLarge)
     # These models are subject to the Platform Model License 1.0
     RF_DETR_XLARGE = ModelWeightAsset(
         "rf-detr-xlarge.pth",
-        "https://rfdetr.roboflowstatic.com/platform-licensed/rf-detr-xlarge.pth",
+        "https://repo.roboflow.com/rfdetr/platform-licensed/rf-detr-xlarge.pth",
         "6ddf834f2bc5bed3214a82f9b0aaeed7",
     )
     RF_DETR_XXLARGE = ModelWeightAsset(
         "rf-detr-xxlarge.pth",
-        "https://rfdetr.roboflowstatic.com/platform-licensed/rf-detr-xxlarge.pth",
+        "https://repo.roboflow.com/rfdetr/platform-licensed/rf-detr-xxlarge.pth",
         "e3204689c1f0280427e4c33e6a2ac6cd",
     )
 

@@ -14,4 +14,4 @@ class TestModelWeights:
     @pytest.mark.parametrize("model", [pytest.param(m, id=m.filename) for m in ModelWeights])
     def test_all_models_download_from_weights_cdn(self, model: ModelWeights) -> None:
         """Every platform-licensed weight file is served from the RF-DETR weights CDN host."""
-        assert model.url.startswith("https://rfdetr.roboflowstatic.com/"), model.url
+        assert model.url.startswith("https://repo.roboflow.com/rfdetr/"), model.url
