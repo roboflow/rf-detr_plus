@@ -5,11 +5,14 @@
 ### Added
 
 - `RFDETRAtto`, `RFDETRFemto` and `RFDETRPico`: real-time detection models with a Meta Perception Encoder PE-Core-T backbone (`timm` `vit_pe_core_tiny_patch16_384`) and architectures selected by neural architecture search: Atto at 380x380 (one attention window, no decoder layers), Femto at 384x384 (two windows, two decoder layers) and Pico at 560x560 (two windows, three decoder layers). They use the standard `rfdetr` training, inference and export APIs.
+
 - `rfdetr_plus.models.pe_core`: the PE-Core-T encoder and backbone, registered with `rfdetr` as `ModelConfig.encoder="pe_core_t"`.
 
 ### Changed
 
 - Minimum `rfdetr` dependency raised from `1.8.0` to `1.12.0` for its backbone registry, `ModelConfig.dim_feedforward` and export-shape hook; `timm>=1.0.27,<2` added for the PE-Core-T trunk.
+
+- XLarge and 2XLarge weights download from `https://repo.roboflow.com/rfdetr`, a CDN in front of the same files, instead of `https://storage.googleapis.com/rfdetr`. Object paths and MD5 hashes are unchanged, so weights already in the cache are not downloaded again. A network that only allows listed hosts needs to allow `repo.roboflow.com`; the old URLs keep working for earlier releases.
 
 ## 1.1.0 — 2026-09-22
 
