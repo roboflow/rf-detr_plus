@@ -65,8 +65,8 @@ tests = [
 ]
 
 [tool.uv.sources]
-# Temporary: test against roboflow/rf-detr#1568 until it is released as rfdetr 1.12.0.
-rfdetr = { git = "https://github.com/roboflow/rf-detr", branch = "feat/plus-rfdetr-atto-femto-pico" }
+# TODO: Temporary test against roboflow/rf-detr#1568 until it is released as rfdetr 1.12.0.
+rfdetr = { git = "https://github.com/roboflow/rf-detr", branch = "develop" }
 
 [project.urls]
 Homepage = "https://github.com/roboflow/rf-detr-plus"
