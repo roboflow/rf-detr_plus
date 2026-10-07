@@ -5,8 +5,8 @@
 # ------------------------------------------------------------------------
 """RF-DETR+ extension package.
 
-Platform-licensed large-scale detection models (XLarge and 2XLarge)
-for the RF-DETR family.
+Platform-licensed detection models for the RF-DETR family: the large-scale DINOv2 models (XLarge and 2XLarge) and
+the real-time PE-Core-T models (Atto, Femto and Pico).
 """
 
 __version__ = "1.1.0"
@@ -16,9 +16,12 @@ __license__ = "PML-1.0"
 __url__ = "https://github.com/roboflow/rf-detr_plus"
 __docs__ = "https://rfdetr.roboflow.com"
 
-from rfdetr_plus.models import RFDETR2XLarge, RFDETRXLarge
+from rfdetr_plus.models import RFDETR2XLarge, RFDETRAtto, RFDETRFemto, RFDETRPico, RFDETRXLarge
 
 __all__ = [
     "RFDETR2XLarge",
+    "RFDETRAtto",
+    "RFDETRFemto",
+    "RFDETRPico",
     "RFDETRXLarge",
 ]

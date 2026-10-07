@@ -6,12 +6,12 @@
 
 ## Repository Overview
 
-RF-DETR+ is an extension package providing XLarge and 2XLarge model variants for RF-DETR, a real-time transformer architecture for object detection and instance segmentation.
+RF-DETR+ is an extension package providing XLarge and 2XLarge (DINOv2) and Atto, Femto and Pico (PE-Core-T) model variants for RF-DETR, a real-time transformer architecture for object detection and instance segmentation.
 
 - **Project Type:** Python ML extension package (computer vision)
 - **Python:** >=3.10 (3.10, 3.11, 3.12, 3.13)
 - **License:** Platform Model License (PML) 1.0
-- **Dependency:** Requires `rfdetr>=1.8.0,<2` base package. `compile=True` is a no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1.
+- **Dependency:** Requires `rfdetr>=1.12.0,<2` base package and `timm>=1.0.27,<2`. `compile=True` is a no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1.
 
 > [!TIP]
 >
@@ -52,15 +52,15 @@ pre-commit run --all-files
 
 **Project Structure:**
 
-- `src/rfdetr_plus/` - XLarge and 2XLarge model implementations
+- `src/rfdetr_plus/` - XLarge, 2XLarge, Atto, Femto and Pico model implementations (`models/pe_core.py` holds the PE-Core-T encoder)
 - `tests/` - Test suite
-- Depends on base `rfdetr` package (>=1.8.0,\<2) for all core functionality
+- Depends on base `rfdetr` package (>=1.12.0,\<2) for all core functionality
 
 **Imports:**
 
 - Always use direct imports: `from rfdetr.utilities.distributed import get_rank, is_main_process`
 - Logger: `from rfdetr.utilities.logger import get_logger` (reads `LOG_LEVEL` env var)
-- RF-DETR+ models: `from rfdetr_plus.models.detection import RFDETRXLarge, RFDETR2XLarge`
+- RF-DETR+ models: `from rfdetr_plus.models.detection import RFDETR2XLarge, RFDETRAtto, RFDETRFemto, RFDETRPico, RFDETRXLarge`
 
 ## Testing & Development Workflow
 
