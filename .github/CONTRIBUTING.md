@@ -62,7 +62,7 @@ rf-detr_plus/
 ├── src/rfdetr_plus/      # Main package source code
 │   ├── __init__.py       # Package entry point
 │   ├── assets/           # Model weight metadata/download helpers
-│   └── models/           # Model implementations (XLarge, 2XLarge variants)
+│   └── models/           # Model implementations (XLarge, 2XLarge, Atto, Femto, Pico variants)
 ├── tests/                # Test suite
 │   └── test_*.py         # Test files
 ├── pyproject.toml        # Project metadata, dependencies, tool configurations
@@ -76,8 +76,8 @@ rf-detr_plus/
 
 - **`src/rfdetr_plus/`** - All source code for the RF-DETR+ package
 
-    - Contains extended model implementations (XLarge, 2XLarge variants)
-    - Depends on the base `rfdetr` package (>=1.8.0,\<2)
+    - Contains extended model implementations (XLarge, 2XLarge, Atto, Femto, Pico variants)
+    - Depends on the base `rfdetr` package (>=1.12.0,\<2) and `timm` (>=1.0.27,\<2)
 
 - **`tests/`** - Test suite
 
@@ -140,7 +140,8 @@ RF-DETR+ extends the base RF-DETR package with additional model variants.
 
 **Core dependency:**
 
-- `rfdetr>=1.8.0,<2` - Base RF-DETR package. `ModelConfig.compile=True` is a documented no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1; pin ≥1.10.1 if you need it to actually accelerate training.
+- `rfdetr>=1.12.0,<2` - Base RF-DETR package (1.12.0 adds the backbone registry the PE-Core-T models use). `ModelConfig.compile=True` is a documented no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1; pin ≥1.10.1 if you need it to actually accelerate training.
+- `timm>=1.0.27,<2` - PE-Core-T trunk for the Atto, Femto and Pico models.
 
 **Development groups:**
 
@@ -360,13 +361,14 @@ Understanding the architecture and coding conventions will help you write consis
 RF-DETR+ is an extension package that provides additional model variants:
 
 - Extends the base `rfdetr` package
-- Provides XLarge and 2XLarge model variants
-- Depends on `rfdetr>=1.8.0,<2` for all core functionality
+- Provides XLarge and 2XLarge (DINOv2) and Atto, Femto and Pico (PE-Core-T) model variants
+- Depends on `rfdetr>=1.12.0,<2` for all core functionality and `timm>=1.0.27,<2` for the PE-Core-T trunk
 - Licensed under Platform Model License (PML) 1.0
 
 ### Model Architecture
 
 - XLarge and 2XLarge variants follow the same architecture patterns as base RF-DETR models
+- Atto, Femto and Pico swap the DINOv2 encoder for Meta's PE-Core-T (`models/pe_core.py`), registered with `rfdetr` via `register_backbone`; everything after the encoder is base RF-DETR
 - All base architecture documentation from the `rfdetr` package applies
 - Refer to [RF-DETR documentation](https://rfdetr.roboflow.com) for core architecture details
 
@@ -383,7 +385,7 @@ from rfdetr.utilities.logger import get_logger
 logger = get_logger()  # Default name: "rf-detr", reads LOG_LEVEL env var
 
 # RF-DETR+ models
-from rfdetr_plus.models.detection import RFDETRXLarge, RFDETR2XLarge
+from rfdetr_plus.models.detection import RFDETR2XLarge, RFDETRAtto, RFDETRFemto, RFDETRPico, RFDETRXLarge
 ```
 
 ### Logging Conventions

@@ -35,7 +35,10 @@ classifiers = [
 keywords = ["machine-learning", "deep-learning", "vision", "ML", "DL", "AI", "DETR", "RF-DETR", "Roboflow"]
 
 dependencies = [
-    "rfdetr>=1.8.0,<2",
+    # 1.12.0 adds the backbone registry, ModelConfig.dim_feedforward and the export-shape hook the PE-Core-T models use.
+    "rfdetr>=1.12.0,<2",
+    # PE-Core-T trunk (vit_pe_core_tiny_patch16_384) for RFDETRAtto / RFDETRFemto / RFDETRPico.
+    "timm>=1.0.27,<2",
 ]
 
 [project.optional-dependencies]
