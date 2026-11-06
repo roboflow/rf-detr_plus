@@ -225,11 +225,11 @@ def test_inference_optimization_matches_eager_predictions(
     image = np.random.default_rng(0).integers(0, 255, (384, 384, 3), dtype=np.uint8)
     eager = model.predict(image, threshold=0.0)
 
-    model.inference(compile=compile_, dtype=dtype)
-    optimized = model.predict(image, threshold=0.0)
+    predictor = model.inference(compile=compile_, dtype=dtype)
+    optimized = predictor.predict(image, threshold=0.0)
 
     assert len(optimized) == len(eager)
-    assert all(p.dtype == dtype for p in model.model.inference_model.parameters())
+    assert all(p.dtype == dtype for p in predictor._native_model.model.inference_model.parameters())
     if dtype == torch.float32:
         scores, eager_scores = np.sort(optimized.confidence)[::-1], np.sort(eager.confidence)[::-1]
         np.testing.assert_allclose(scores, eager_scores, rtol=0, atol=1e-5)

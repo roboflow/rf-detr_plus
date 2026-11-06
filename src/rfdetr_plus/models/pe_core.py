@@ -278,7 +278,10 @@ class PECoreEncoder(nn.Module):
         rope = self.model.rope
         if (grid_h, grid_w) == tuple(rope.feat_shape):
             return rope.get_embed()
-        return rope._get_pos_embed_values([grid_h, grid_w], device=rope.pos_embed.device, dtype=rope.pos_embed.dtype)
+        device, dtype = rope.pos_embed.device, rope.pos_embed.dtype
+        if hasattr(rope, "_build_embed_cat"):  # timm >= 1.0.31 dropped ``_get_pos_embed_values``
+            return rope._build_embed_cat([grid_h, grid_w], rope.bands, device=device, dtype=dtype)
+        return rope._get_pos_embed_values([grid_h, grid_w], device=device, dtype=dtype)
 
     def set_export_shape(self, shape: tuple[int, int]) -> None:
         """Bake position embeddings for *shape* before export tracing (called by ``rfdetr``'s export preparation).
