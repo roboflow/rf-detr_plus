@@ -28,7 +28,10 @@ jobs:
       matrix:
         os: ["ubuntu-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+        timm: ["latest"]
         include:
+          # Lowest supported timm: exercises the pre-1.0.31 RoPE API branch in rfdetr_plus.models.pe_core
+          - { os: "ubuntu-latest", python-version: "3.12", timm: "1.0.27" }
           - { os: "windows-latest", python-version: "3.10" }
           - { os: "macos-latest", python-version: "3.10" }
           - { os: "windows-latest", python-version: "3.13" }
@@ -46,6 +49,10 @@ jobs:
 
       - name: 🚀 Install Packages
         run: uv pip install -e . --group tests
+
+      - name: 📌 Pin timm to ${{ matrix.timm }}
+        if: matrix.timm != 'latest'
+        run: uv pip install "timm==${{ matrix.timm }}"
 
       - name: 🧪 Run the Test
         run: pytest -m "not gpu" --cov=rfdetr_plus --cov-report=xml
