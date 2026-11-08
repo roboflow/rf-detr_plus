@@ -29,12 +29,26 @@ from rfdetr_plus.models.pe_core import (
 )
 
 _OUT_FEATURE_INDEXES = [2, 5, 8, 11]
+#: Keyword arguments of ``PECoreBackbone._build_encoder`` for a small valid encoder.
+_BUILD_KWARGS = {
+    "out_feature_indexes": _OUT_FEATURE_INDEXES,
+    "target_shape": (160, 160),
+    "gradient_checkpointing": False,
+    "load_pretrained_weights": False,
+    "patch_size": 20,
+    "num_windows": 2,
+    "positional_encoding_size": 8,
+    "drop_path": 0.0,
+    "window_block_indexes": None,
+}
 
 
-def _encoder(patch_size: int = 20, num_windows: int = 2, grid: int = 8, **kwargs) -> PECoreEncoder:
+def _encoder(
+    patch_size: int = 20, num_windows: int = 2, grid: int = 8, out_feature_indexes: list[int] | None = None, **kwargs
+) -> PECoreEncoder:
     side = grid * patch_size
     return PECoreEncoder(
-        out_feature_indexes=_OUT_FEATURE_INDEXES,
+        out_feature_indexes=_OUT_FEATURE_INDEXES if out_feature_indexes is None else out_feature_indexes,
         shape=(side, side),
         patch_size=patch_size,
         num_windows=num_windows,
@@ -269,13 +283,112 @@ class TestPECoreEncoder:
         ]
         assert not empty
 
-    def test_second_export_shape_is_rejected(self) -> None:
+    def test_repeated_export_shapes_match_a_single_bake(self) -> None:
+        """Baking 200x200 and then 240x240 gives the pos_embed of a single 240x240 bake.
+
+        rfdetr's hook contract allows ``set_export_shape`` to be called again with another shape. Resampling the
+        already-resampled 10x10 embedding would add a second interpolation loss; the re-bake must start from the
+        original 8x8 one instead.
+        """
         encoder = _encoder(patch_size=20, num_windows=2, grid=8)
-        encoder.set_export_shape((160, 160))
+        direct = copy.deepcopy(encoder)
+
+        encoder.set_export_shape((200, 200))
+        encoder.set_export_shape((240, 240))
+        direct.set_export_shape((240, 240))
+
+        assert tuple(encoder.model.patch_embed.grid_size) == (12, 12)
+        assert torch.equal(encoder.model.pos_embed.detach(), direct.model.pos_embed.detach())
+        assert torch.equal(encoder.model.rope.get_embed(), direct.model.rope.get_embed())
+
+    def test_rebake_to_the_build_shape_restores_the_original_embedding(self) -> None:
+        """Exporting at another shape and back leaves the original position embedding, not a resampled copy."""
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8)
+        original = encoder.model.pos_embed.detach().clone()
+
+        encoder.set_export_shape((240, 240))
         encoder.set_export_shape((160, 160))
 
-        with pytest.raises(RuntimeError, match="already exported"):
-            encoder.set_export_shape((240, 240))
+        assert tuple(encoder.model.patch_embed.grid_size) == (8, 8)
+        assert torch.equal(encoder.model.pos_embed.detach(), original)
+
+    def test_export_follows_a_changed_shape(self) -> None:
+        """``export()`` on an already-baked encoder re-bakes when ``shape`` changed instead of keeping the old bake."""
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8)
+        encoder.export()
+
+        encoder.shape = (240, 240)
+        encoder.export()
+
+        assert tuple(encoder.model.patch_embed.grid_size) == (12, 12)
+        assert tuple(encoder.model.pos_embed.shape) == (1, 1 + 12 * 12, 192)
+
+    def test_pristine_position_embedding_stays_out_of_the_state_dict(self) -> None:
+        """The re-bake snapshot is neither a parameter nor a buffer, so checkpoints and optimizers never see it."""
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8)
+        keys_before = set(encoder.state_dict())
+        parameters_before = len(list(encoder.parameters()))
+
+        encoder.set_export_shape((240, 240))
+
+        assert set(encoder.state_dict()) == keys_before
+        assert len(list(encoder.parameters())) == parameters_before
+
+    def test_export_attention_follows_a_disabled_fused_attn(self) -> None:
+        """With ``fused_attn`` off (as ``timm.layers.set_exportable`` does) the export attention is still swapped in.
+
+        The swap used to be skipped silently in that mode, leaving timm's empty-prefix RoPE concat in the export graph.
+        The explicit softmax path must give the same features as timm's own non-fused forward.
+        """
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8).eval()
+        for block in encoder.model.blocks:
+            block.attn.fused_attn = False
+        images = torch.randn(1, 3, 160, 160)
+        with torch.no_grad():
+            eager = encoder(images)
+
+        exported_copy = copy.deepcopy(encoder)
+        exported_copy.export()
+        with torch.no_grad():
+            exported = exported_copy(images)
+
+        assert all(block.attn.forward.__func__ is _export_attention_forward for block in exported_copy.model.blocks)
+        for a, b in zip(eager, exported):
+            torch.testing.assert_close(a, b, rtol=1e-5, atol=1e-5)
+
+    @pytest.mark.parametrize(
+        "out_feature_indexes",
+        [
+            pytest.param([12], id="past-the-last-block"),
+            pytest.param([-13], id="before-the-first-block"),
+            pytest.param([2, 2], id="duplicate"),
+            pytest.param([2, -10], id="duplicate-through-a-negative-index"),
+        ],
+    )
+    def test_invalid_out_feature_indexes_raise(self, out_feature_indexes: list[int]) -> None:
+        """Bad block indexes fail at construction, not at the first forward pass."""
+        with pytest.raises(ValueError, match="out_feature_indexes"):
+            _encoder(out_feature_indexes=out_feature_indexes)
+
+    def test_out_feature_indexes_are_normalised(self) -> None:
+        """Negative and unsorted indexes become the sorted, non-negative blocks the feature maps come from."""
+        encoder = _encoder(out_feature_indexes=[11, 2, -7]).eval()
+
+        with torch.no_grad():
+            feats = encoder(torch.randn(1, 3, 160, 160))
+
+        assert encoder.out_feature_indexes == [2, 5, 11]
+        assert encoder._out_feature_channels == [192] * 3
+        assert len(feats) == 3
+
+    def test_malformed_pos_embed_checkpoint_is_not_resampled(self) -> None:
+        """A pos_embed whose patch count is not a square grid is passed through and fails as a plain size mismatch."""
+        encoder = _encoder()
+        state = encoder.state_dict()
+        state["model.pos_embed"] = torch.zeros(1, 1 + 7, 192)
+
+        with pytest.raises(RuntimeError, match=r"size mismatch.*pos_embed"):
+            encoder.load_state_dict(state)
 
     def test_clip_head_keys_are_ignored(self) -> None:
         """Checkpoints that still carry PE-CLIP's attention-pool head load strictly."""
@@ -324,6 +437,8 @@ class TestPELayerDecay:
             pytest.param("backbone.0.encoder.model.pos_embed", 0, id="pos_embed"),
             pytest.param("backbone.0.encoder.model.patch_embed.proj.weight", 0, id="patch_embed"),
             pytest.param("backbone.0.encoder.model.cls_token", 0, id="cls_token"),
+            pytest.param("backbone.0.encoder.model.reg_token", 0, id="reg_token"),
+            pytest.param("backbone.0.encoder.model.blocks.3.residual.weight", 14, id="residual-skips-the-block-rule"),
             pytest.param("backbone.0.encoder.model.blocks.0.attn.qkv.weight", 1, id="block-0"),
             pytest.param("backbone.0.encoder.model.blocks.11.mlp.fc2.bias", 12, id="block-11"),
             pytest.param("backbone.0.encoder.model.norm.weight", 14, id="final-norm"),
@@ -339,6 +454,7 @@ class TestPELayerDecay:
             pytest.param("backbone.0.encoder.model.pos_embed", 0.0, id="pos_embed"),
             pytest.param("backbone.0.encoder.model.patch_embed.proj.weight", 0.0, id="patch_embed"),
             pytest.param("backbone.0.encoder.model.cls_token", 0.0, id="cls_token"),
+            pytest.param("backbone.0.encoder.model.reg_token", 0.0, id="reg_token"),
             pytest.param("backbone.0.encoder.model.blocks.3.attn.qkv.bias", 0.0, id="bias"),
             pytest.param("backbone.0.encoder.model.blocks.3.norm1.weight", 0.0, id="norm"),
             pytest.param("backbone.0.encoder.model.blocks.3.attn.qkv.weight", 1.0, id="weight"),
@@ -403,6 +519,43 @@ class TestPECoreBackbone:
             assert group["weight_decay"] == 1e-4 * get_pe_weight_decay_rate(name), name
         blocks_0 = groups["backbone.0.encoder.model.blocks.0.attn.qkv.weight"]
         assert blocks_0["lr"] == pytest.approx(1.5e-4 * 0.8**13 * 0.49)
+
+    def test_layer_count_follows_the_encoders_normalised_indexes(self, backbone: PECoreBackbone) -> None:
+        """Unsorted ``args.out_feature_indexes`` must not shift the layer-wise decay: the encoder's own list decides."""
+        args = Namespace(
+            out_feature_indexes=[11, 2],
+            lr_encoder=1.5e-4,
+            lr_vit_layer_decay=0.8,
+            lr_component_decay=0.7,
+            weight_decay=1e-4,
+        )
+
+        groups = backbone.get_named_param_lr_pairs(args, prefix="backbone.0")
+
+        assert groups["backbone.0.encoder.model.blocks.0.attn.qkv.weight"]["lr"] == pytest.approx(
+            1.5e-4 * 0.8**13 * 0.49
+        )
+
+    def test_build_encoder_ignores_unknown_keywords(self, backbone: PECoreBackbone) -> None:
+        """Keywords rfdetr adds to the encoder hook later are accepted and ignored instead of raising ``TypeError``."""
+        encoder = backbone._build_encoder("pe_core_t", **_BUILD_KWARGS, future_hook_option=True)
+
+        assert isinstance(encoder, PECoreEncoder)
+
+    @pytest.mark.parametrize(
+        ("overrides", "message"),
+        [
+            pytest.param({"out_feature_indexes": []}, "must be non-empty", id="empty-out-feature-indexes"),
+            pytest.param({"out_feature_indexes": None}, "must be non-empty", id="missing-out-feature-indexes"),
+            pytest.param({"window_block_indexes": [0]}, "window_block_indexes is not supported", id="window-blocks"),
+        ],
+    )
+    def test_build_encoder_rejects_unsupported_arguments(
+        self, backbone: PECoreBackbone, overrides: dict, message: str
+    ) -> None:
+        """The hook's two unsupported inputs are rejected with a message naming the argument."""
+        with pytest.raises(ValueError, match=message):
+            backbone._build_encoder("pe_core_t", **{**_BUILD_KWARGS, **overrides})
 
     def test_frozen_encoder_params_are_excluded(self) -> None:
         backbone = PECoreBackbone(

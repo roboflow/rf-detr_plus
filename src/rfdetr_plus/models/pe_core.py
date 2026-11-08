@@ -21,14 +21,13 @@ from typing import Any
 
 import timm
 import torch
-import torch.nn.functional as F
 from rfdetr.models.backbone import register_backbone
 from rfdetr.models.backbone.backbone import Backbone
 from rfdetr.utilities.logger import get_logger
 from timm.layers import Format, apply_rot_embed_cat, resample_abs_pos_embed
 from timm.layers.attention import AttentionRope
-from timm.models._features import feature_take_indices
 from torch import Tensor, nn
+from torch.nn.functional import scaled_dot_product_attention
 from torch.utils.checkpoint import checkpoint
 
 logger = get_logger()
@@ -126,6 +125,12 @@ def _export_attention_forward(
     timm applies RoPE as ``cat([q[:, :, :npt], rope(q[:, :, npt:])], dim=2)``. This encoder sets ``npt`` to 0 (the class
     token has a no-op RoPE row instead), which makes the first operand an empty slice: an identity in PyTorch, but
     onnx2tf (``format="tflite"``) reads it as the whole tensor and doubles the token axis. The values are unchanged.
+
+    The block's ``fused_attn`` choice is kept: scaled-dot-product attention when it is on, timm's explicit softmax path
+    when it is off (``timm.layers.set_exportable`` turns it off for export). The explicit path takes no causal mask.
+
+    Raises:
+        NotImplementedError: If ``fused_attn`` is off and ``is_causal`` is set.
     """
     B, N, _ = x.shape
     q, k, v = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4).unbind(0)
@@ -134,11 +139,53 @@ def _export_attention_forward(
         half = getattr(self, "rotate_half", False)
         q = apply_rot_embed_cat(q, rope, half=half).type_as(v)
         k = apply_rot_embed_cat(k, rope, half=half).type_as(v)
-    x = F.scaled_dot_product_attention(
-        q, k, v, attn_mask=attn_mask, dropout_p=self.attn_drop.p if self.training else 0.0, is_causal=is_causal
-    )
+    if self.fused_attn:
+        x = scaled_dot_product_attention(
+            q, k, v, attn_mask=attn_mask, dropout_p=self.attn_drop.p if self.training else 0.0, is_causal=is_causal
+        )
+    else:
+        if is_causal:
+            raise NotImplementedError("The export attention without fused_attn does not support is_causal.")
+        attn = (q * self.scale) @ k.transpose(-2, -1)
+        if attn_mask is not None:
+            attn = attn + attn_mask
+        x = self.attn_drop(attn.softmax(dim=-1)) @ v
     x = x.transpose(1, 2).reshape(B, N, self.attn_dim)
     return self.proj_drop(self.proj(self.norm(x)))
+
+
+def _supports_export_attention(attn: nn.Module) -> bool:
+    """Whether :func:`_export_attention_forward` reproduces this block (plain fused-QKV timm RoPE attention)."""
+    return (
+        type(attn) is AttentionRope
+        and attn.qkv is not None
+        and getattr(attn, "gate", None) is None
+        and getattr(attn, "num_kv_groups", 1) == 1
+        and not attn.num_prefix_tokens
+    )
+
+
+def _normalize_block_indexes(indexes: list[int], depth: int) -> list[int]:
+    """Validate block indexes against *depth* and return them as sorted, non-negative integers.
+
+    Args:
+        indexes: Block indexes; negative values count from the last block.
+        depth: Number of blocks in the trunk.
+
+    Returns:
+        The distinct indexes in ascending order, which is the order the feature maps are produced in.
+
+    Raises:
+        ValueError: If an index is out of range or two indexes name the same block.
+    """
+    normalized = []
+    for index in indexes:
+        if not -depth <= index < depth:
+            raise ValueError(f"out_feature_indexes entry {index} is out of range for a trunk with {depth} blocks.")
+        normalized.append(index % depth)
+    if len(set(normalized)) != len(normalized):
+        raise ValueError(f"out_feature_indexes {list(indexes)} names the same block more than once.")
+    return sorted(normalized)
 
 
 @torch.compiler.disable
@@ -160,8 +207,10 @@ def _resample_pos_embed(pos_embed: Tensor, grid: tuple[int, int], stored_grid: t
 def get_pe_lr_decay_rate(name: str, lr_decay_rate: float = 1.0, num_layers: int = 12) -> float:
     """Layer-wise learning-rate decay multiplier for a PE-Core-T (timm naming) parameter.
 
-    Embeddings and the class token form layer 0, block ``i`` is layer ``i + 1``, and every other parameter (final
-    norms, heads) gets the undecayed rate.
+    Embeddings and the class token form layer 0, block ``i`` is layer ``i + 1``, and every other parameter gets the
+    undecayed rate: the final norm, the heads and ``norm_pre``, the norm applied to the embedded tokens before the first
+    block. ``norm_pre`` is deliberately not part of layer 0, which keeps the layer assignment the released weights were
+    trained with.
 
     Args:
         name: Full parameter name, e.g. ``"backbone.0.encoder.model.blocks.3.attn.qkv.weight"``.
@@ -221,6 +270,10 @@ class PECoreEncoder(nn.Module):
             ``patch_size`` and the position grid).
         drop_path: Stochastic-depth rate of the trunk blocks.
         gradient_checkpointing: Checkpoint block activations during training.
+
+    Raises:
+        ValueError: If ``out_feature_indexes`` holds an out-of-range or duplicate block index (negative indexes count
+            from the last block).
     """
 
     def __init__(
@@ -257,12 +310,16 @@ class PECoreEncoder(nn.Module):
             block.attn.num_prefix_tokens = 0
         self.model.set_grad_checkpointing(gradient_checkpointing)
 
-        self.out_feature_indexes = list(out_feature_indexes)
+        self.out_feature_indexes = _normalize_block_indexes(out_feature_indexes, len(self.model.blocks))
         self.shape = tuple(shape)
         self.patch_size = patch_size
         self.num_windows = num_windows
         self._out_feature_channels = [self.model.embed_dim] * len(self.out_feature_indexes)
         self._export = False
+        # Original position embedding and its grid, kept by the first export bake so a later bake resamples from it
+        # rather than from an already-resampled copy. A plain attribute: never part of the state dict or the optimizer.
+        self._pristine_pos_embed: Tensor | None = None
+        self._pristine_grid: tuple[int, int] | None = None
 
     @torch.compiler.disable
     def rope_for_grid(self, grid_h: int, grid_w: int) -> Tensor:
@@ -286,19 +343,13 @@ class PECoreEncoder(nn.Module):
     def set_export_shape(self, shape: tuple[int, int]) -> None:
         """Bake position embeddings for *shape* before export tracing (called by ``rfdetr``'s export preparation).
 
+        May be called repeatedly with different shapes: each call re-bakes from the original position embedding, so
+        the result equals a single bake at that shape.
+
         Args:
             shape: ``(height, width)`` the graph is exported at.
-
-        Raises:
-            RuntimeError: If the encoder was already exported for a different shape.
         """
-        shape = tuple(shape)
-        if self._export and shape != self.shape:
-            raise RuntimeError(
-                f"This PE-Core-T encoder is already exported for shape {self.shape}; export a fresh copy of the model "
-                f"for shape {shape}."
-            )
-        self.shape = shape
+        self.shape = tuple(shape)
         self.export()
 
     def export(self) -> None:
@@ -306,22 +357,38 @@ class PECoreEncoder(nn.Module):
 
         Runtime pos_embed resampling uses antialiased bicubic interpolation, which ONNX cannot express. Attention also
         switches to :func:`_export_attention_forward`, which computes the same values with a graph onnx2tf converts.
-        Eager use after ``export()`` sees the model in its baked, export-time configuration. Idempotent.
+        Eager use after ``export()`` sees the model in its baked, export-time configuration. Idempotent for an
+        unchanged ``shape``; after ``shape`` changes, the next call re-bakes from the original position embedding so
+        interpolation losses never accumulate.
         """
-        if self._export:
-            return
         grid = (self.shape[0] // self.patch_size, self.shape[1] // self.patch_size)
-        stored_grid = tuple(self.model.patch_embed.grid_size)
-        if grid != stored_grid:
+        baked_grid = tuple(self.model.patch_embed.grid_size)
+        if grid != baked_grid:
+            if self._pristine_pos_embed is None:
+                self._pristine_pos_embed = self.model.pos_embed.detach().clone()
+                self._pristine_grid = baked_grid
+            source = self._pristine_pos_embed.to(device=self.model.pos_embed.device, dtype=self.model.pos_embed.dtype)
             with torch.no_grad():
-                pos_embed = _resample_pos_embed(self.model.pos_embed, grid, stored_grid)
+                pos_embed = (
+                    source if grid == self._pristine_grid else _resample_pos_embed(source, grid, self._pristine_grid)
+                )
             self.model.pos_embed = nn.Parameter(pos_embed)
             self.model.patch_embed.grid_size = grid
             self.model.rope.update_feat_shape(grid)
+        unswapped = 0
         for block in self.model.blocks:
             attn = block.attn
-            if type(attn) is AttentionRope and attn.qkv is not None and attn.fused_attn and not attn.num_prefix_tokens:
+            if _supports_export_attention(attn):
                 attn.forward = types.MethodType(_export_attention_forward, attn)
+            else:
+                unswapped += 1
+        if unswapped:
+            logger.warning(
+                "%d of %d PE-Core-T attention blocks keep timm's forward in the export graph; onnx2tf (tflite) may "
+                "misread its empty-prefix RoPE concatenation.",
+                unswapped,
+                len(self.model.blocks),
+            )
         self._export = True
 
     def _load_from_state_dict(
@@ -391,7 +458,7 @@ class PECoreEncoder(nn.Module):
                 f"(patch_size={patch_size} * num_windows={num_windows}), got {height}x{width}."
             )
         grid_h, grid_w = height // patch_size, width // patch_size
-        take_indices, max_index = feature_take_indices(len(model.blocks), self.out_feature_indexes)
+        take_indices, max_index = self.out_feature_indexes, self.out_feature_indexes[-1]
 
         # Class token + position embedding, as timm's `_pos_embed` does, but resampling only when the grid differs
         # from the stored one: timm also resamples non-square grids of the stored size, which would put antialiased
@@ -473,8 +540,12 @@ class PECoreBackbone(Backbone):
         positional_encoding_size: int,
         drop_path: float,
         window_block_indexes: list[int] | None,
+        **kwargs: Any,
     ) -> nn.Module:
         """Build the PE-Core-T encoder; ``out_feature_indexes`` sets the full-attention blocks, all others are windowed.
+
+        Extra keyword arguments are ignored: ``rfdetr`` documents that the hook's keyword set may grow, and an override
+        must accept the additions.
 
         Raises:
             ValueError: If ``out_feature_indexes`` is empty or ``window_block_indexes`` is set.
@@ -500,17 +571,19 @@ class PECoreBackbone(Backbone):
     def get_named_param_lr_pairs(self, args: Any, prefix: str = "backbone.0") -> dict[str, dict[str, Any]]:
         """Per-parameter learning rate and weight decay for the trainable encoder parameters.
 
-        Layer 0 holds the embeddings, so ``num_layers`` is ``out_feature_indexes[-1] + 2``.
+        Layer 0 holds the embeddings, so ``num_layers`` is the last output block index (as the encoder normalised it)
+        plus 2.
 
         Args:
             args: Namespace with ``lr_encoder``, ``lr_vit_layer_decay``, ``lr_component_decay``, ``weight_decay`` and
-                ``out_feature_indexes``.
+                ``out_feature_indexes``; the encoder's own normalised indexes take precedence over the latter.
             prefix: Name prefix of this backbone inside the detector.
 
         Returns:
             ``{parameter name: {"params", "lr", "weight_decay"}}`` for every trainable encoder parameter.
         """
-        num_layers = args.out_feature_indexes[-1] + 2
+        out_feature_indexes = getattr(getattr(self, "encoder", None), "out_feature_indexes", None)
+        num_layers = max(out_feature_indexes or args.out_feature_indexes) + 2
         named_param_lr_pairs = {}
         for name, param in self.named_parameters():
             name = f"{prefix}.{name}"
