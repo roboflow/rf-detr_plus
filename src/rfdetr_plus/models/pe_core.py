@@ -148,6 +148,8 @@ def _export_attention_forward(
             raise NotImplementedError("The export attention without fused_attn does not support is_causal.")
         attn = (q * self.scale) @ k.transpose(-2, -1)
         if attn_mask is not None:
+            if attn_mask.dtype == torch.bool:  # timm turns a boolean keep-mask into a -inf bias
+                attn_mask = torch.zeros_like(attn).masked_fill(~attn_mask, float("-inf"))
             attn = attn + attn_mask
         x = self.attn_drop(attn.softmax(dim=-1)) @ v
     x = x.transpose(1, 2).reshape(B, N, self.attn_dim)
@@ -176,8 +178,10 @@ def _normalize_block_indexes(indexes: list[int], depth: int) -> list[int]:
         The distinct indexes in ascending order, which is the order the feature maps are produced in.
 
     Raises:
-        ValueError: If an index is out of range or two indexes name the same block.
+        ValueError: If *indexes* is empty, an index is out of range or two indexes name the same block.
     """
+    if not indexes:
+        raise ValueError("out_feature_indexes must name at least one block.")
     normalized = []
     for index in indexes:
         if not -depth <= index < depth:
@@ -315,7 +319,6 @@ class PECoreEncoder(nn.Module):
         self.patch_size = patch_size
         self.num_windows = num_windows
         self._out_feature_channels = [self.model.embed_dim] * len(self.out_feature_indexes)
-        self._export = False
         # Original position embedding and its grid, kept by the first export bake so a later bake resamples from it
         # rather than from an already-resampled copy. A plain attribute: never part of the state dict or the optimizer.
         self._pristine_pos_embed: Tensor | None = None
@@ -369,8 +372,11 @@ class PECoreEncoder(nn.Module):
                 self._pristine_grid = baked_grid
             source = self._pristine_pos_embed.to(device=self.model.pos_embed.device, dtype=self.model.pos_embed.dtype)
             with torch.no_grad():
+                # clone: the baked parameter must never share storage with the snapshot it is re-baked from
                 pos_embed = (
-                    source if grid == self._pristine_grid else _resample_pos_embed(source, grid, self._pristine_grid)
+                    source.clone()
+                    if grid == self._pristine_grid
+                    else _resample_pos_embed(source, grid, self._pristine_grid)
                 )
             self.model.pos_embed = nn.Parameter(pos_embed)
             self.model.patch_embed.grid_size = grid
@@ -389,7 +395,6 @@ class PECoreEncoder(nn.Module):
                 unswapped,
                 len(self.model.blocks),
             )
-        self._export = True
 
     def _load_from_state_dict(
         self,
@@ -423,6 +428,9 @@ class PECoreEncoder(nn.Module):
                 f"{tuple(own_kernel.shape)}: it was trained with patch_size={kernel.shape[-1]}, but the model is "
                 f"configured with patch_size={self.patch_size}. Keep the default patch_size to load these weights."
             )
+        # Loaded weights replace the position embedding, so a snapshot taken before them would re-bake stale weights.
+        self._pristine_pos_embed = None
+        self._pristine_grid = None
         key = f"{prefix}model.pos_embed"
         incoming = state_dict.get(key)
         own = self.model.pos_embed

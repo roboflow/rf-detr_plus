@@ -363,6 +363,7 @@ class TestPECoreEncoder:
             pytest.param([-13], id="before-the-first-block"),
             pytest.param([2, 2], id="duplicate"),
             pytest.param([2, -10], id="duplicate-through-a-negative-index"),
+            pytest.param([], id="empty"),
         ],
     )
     def test_invalid_out_feature_indexes_raise(self, out_feature_indexes: list[int]) -> None:
@@ -373,13 +374,67 @@ class TestPECoreEncoder:
     def test_out_feature_indexes_are_normalised(self) -> None:
         """Negative and unsorted indexes become the sorted, non-negative blocks the feature maps come from."""
         encoder = _encoder(out_feature_indexes=[11, 2, -7]).eval()
+        reference = _encoder(out_feature_indexes=[2, 5, 11]).eval()
+        reference.load_state_dict(encoder.state_dict())
+        images = torch.randn(1, 3, 160, 160)
 
         with torch.no_grad():
-            feats = encoder(torch.randn(1, 3, 160, 160))
+            got, expected = encoder(images), reference(images)
 
         assert encoder.out_feature_indexes == [2, 5, 11]
         assert encoder._out_feature_channels == [192] * 3
-        assert len(feats) == 3
+        assert all(torch.equal(a, b) for a, b in zip(got, expected))
+
+    def test_rebake_does_not_alias_the_snapshot(self) -> None:
+        """An in-place update of the baked pos_embed must not change the snapshot later re-bakes start from."""
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8)
+        original = encoder.model.pos_embed.detach().clone()
+        encoder.set_export_shape((240, 240))
+        encoder.set_export_shape((160, 160))
+
+        with torch.no_grad():
+            encoder.model.pos_embed.add_(1.0)
+        encoder.set_export_shape((240, 240))
+        encoder.set_export_shape((160, 160))
+
+        assert torch.equal(encoder.model.pos_embed.detach(), original)
+
+    def test_loading_weights_after_a_bake_is_not_discarded_by_a_rebake(self) -> None:
+        """A re-bake after ``load_state_dict`` resamples the loaded position embedding, not the pre-load snapshot."""
+        encoder = _encoder(patch_size=20, num_windows=2, grid=8)
+        encoder.set_export_shape((240, 240))
+        source = _encoder(patch_size=20, num_windows=2, grid=12)
+        with torch.no_grad():
+            source.model.pos_embed.normal_()
+        encoder.load_state_dict(source.state_dict())
+
+        encoder.set_export_shape((200, 200))
+
+        expected = resample_abs_pos_embed(
+            source.model.pos_embed.detach(), new_size=(10, 10), old_size=(12, 12), num_prefix_tokens=1
+        )
+        assert torch.equal(encoder.model.pos_embed.detach(), expected)
+
+    def test_export_attention_without_fused_attn_rejects_causal_masks(self) -> None:
+        """The explicit softmax path has no causal mask, so asking for one fails instead of attending to the future."""
+        attn = _encoder().model.blocks[0].attn
+        attn.fused_attn = False
+        x = torch.randn(1, 4, attn.qkv.in_features)
+
+        with pytest.raises(NotImplementedError, match="is_causal"):
+            _export_attention_forward(attn, x, is_causal=True)
+
+    def test_export_keeps_timm_attention_for_blocks_it_cannot_reproduce(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A block the export attention cannot reproduce keeps timm's forward and the export says so."""
+        encoder = _encoder()
+        encoder.model.blocks[0].attn.num_prefix_tokens = 1
+
+        with caplog.at_level("WARNING"):
+            encoder.export()
+
+        assert "forward" not in encoder.model.blocks[0].attn.__dict__
+        assert all("forward" in block.attn.__dict__ for block in encoder.model.blocks[1:])
+        assert "1 of 12" in caplog.text
 
     def test_malformed_pos_embed_checkpoint_is_not_resampled(self) -> None:
         """A pos_embed whose patch count is not a square grid is passed through and fails as a plain size mismatch."""
