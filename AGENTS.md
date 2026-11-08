@@ -70,7 +70,7 @@ uv sync --all-groups
 
 See `pyproject.toml` for complete dependency specifications:
 
-- **Core:** `rfdetr>=1.12.0,<2` (Base RF-DETR package with all core dependencies; 1.12.0 adds the backbone registry the PE-Core-T models need) and `timm>=1.0.27,<2` (PE-Core-T trunk). `compile=True` is a no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1 — pin an rfdetr version ≥1.10.1 if you need it to actually accelerate training.
+- **Core:** `rfdetr>=1.12.0,<2` (Base RF-DETR package with all core dependencies; 1.12.0 adds the backbone registry the PE-Core-T models need) and `timm>=1.0.27,<2` (PE-Core-T trunk).
 - **Development:** `tests`, `build`, `dev` groups
 
 **Important:** RF-DETR+ is an extension package that depends on the base `rfdetr` package. All core model architecture, training logic, and utilities come from `rfdetr`.

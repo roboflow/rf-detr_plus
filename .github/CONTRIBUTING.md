@@ -140,7 +140,7 @@ RF-DETR+ extends the base RF-DETR package with additional model variants.
 
 **Core dependency:**
 
-- `rfdetr>=1.12.0,<2` - Base RF-DETR package (1.12.0 adds the backbone registry the PE-Core-T models use). `ModelConfig.compile=True` is a documented no-op below rfdetr 1.10.0 and not `multi_scale`-safe until 1.10.1; pin ≥1.10.1 if you need it to actually accelerate training.
+- `rfdetr>=1.12.0,<2` - Base RF-DETR package (1.12.0 adds the backbone registry the PE-Core-T models use).
 - `timm>=1.0.27,<2` - PE-Core-T trunk for the Atto, Femto and Pico models.
 
 **Development groups:**

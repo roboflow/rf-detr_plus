@@ -12,7 +12,7 @@
 
 - Minimum `rfdetr` dependency raised from `1.8.0` to `1.12.0` for its backbone registry, `ModelConfig.dim_feedforward` and export-shape hook; `timm>=1.0.27,<2` added for the PE-Core-T trunk. ([#68](https://github.com/roboflow/rf-detr_plus/pull/68))
 
-- XLarge and 2XLarge weights download from `https://repo.roboflow.com/rfdetr`, a CDN in front of the same files, instead of `https://storage.googleapis.com/rfdetr`. Object paths and MD5 hashes are unchanged, so weights already in the cache are not downloaded again. A network that only allows listed hosts needs to allow `repo.roboflow.com`; the old URLs keep working for earlier releases. ([#68](https://github.com/roboflow/rf-detr_plus/pull/68))
+- XLarge and 2XLarge weights download from `https://repo.roboflow.com/rfdetr`, a CDN in front of the same files, instead of `https://storage.googleapis.com/rfdetr`. Object paths and MD5 hashes are unchanged, so weights already in the cache are not downloaded again. A network that only allows listed hosts needs to allow `repo.roboflow.com`; the old URLs keep working for earlier releases. ([#70](https://github.com/roboflow/rf-detr_plus/pull/70))
 
 ## 1.1.0 — 2026-09-22
 
