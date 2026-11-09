@@ -63,8 +63,9 @@ rf-detr_plus/
 │   ├── __init__.py       # Package entry point
 │   ├── assets/           # Model weight metadata/download helpers
 │   └── models/           # Model implementations (XLarge, 2XLarge, Atto, Femto, Pico variants)
-├── tests/                # Test suite
-│   └── test_*.py         # Test files
+├── tests/                # Test suite, mirrors src/rfdetr_plus/
+│   ├── assets/           # Tests for src/rfdetr_plus/assets/
+│   └── models/           # Tests for src/rfdetr_plus/models/
 ├── pyproject.toml        # Project metadata, dependencies, tool configurations
 ├── .pre-commit-config.yaml  # Pre-commit hooks configuration
 ├── README.md             # Project overview and quick start
@@ -217,22 +218,64 @@ class TestXLargeModel:
         pass
 ```
 
+**Mirror the package layout and use absolute imports:**
+
+A test for `src/rfdetr_plus/<pkg>/` lives in `tests/<pkg>/` (for example `tests/models/`, `tests/assets/`). Each test folder is a package (`__init__.py`), fixtures shared by several modules go in the nearest common `conftest.py`, and tests import other test modules and helpers with absolute imports (`from tests.models.helpers import ...`).
+
+**Patch with the `mocker` fixture:**
+
+Use `mocker` (`pytest-mock`, in the `tests` group) in preference to `with patch(...)` blocks and `@patch` stacks. Keep a `with` block only where a patch must end before the end of the test. Use `monkeypatch` for environment variables, `sys.modules` and attributes.
+
 **Use `pytest.mark.parametrize` to extend test cases:**
+
+Use `pytest.param(..., id="name")` (instead of a separate `ids` list) when a case passes a function, object, or compound setup as one parameterized item, when it needs a per-case pytest mark, or when the raw value would produce an unclear/empty ID (e.g., `""`). Use bare string, number, boolean, and `None` values otherwise.
 
 ```python
 import pytest
 
 
-@pytest.mark.parametrize(
-    "model_variant",
-    [
-        pytest.param("xlarge", id="xlarge"),
-        pytest.param("2xlarge", id="2xlarge"),
-    ],
-)
+@pytest.mark.parametrize("model_variant", ["xlarge", "2xlarge"])
 def test_model_loading(model_variant):
     # Test code that runs for each model variant
     pass
+```
+
+**Avoid multiple validation cases in a single test:**
+
+Do not write tests that loop through multiple cases internally. Use `@pytest.mark.parametrize` so each case runs, fails and reports on its own:
+
+```python
+import pytest
+from rfdetr_plus.assets.model_weights import ModelWeights
+
+
+# BAD: one failure hides which model broke
+def test_all_models_have_valid_urls():
+    for model in ModelWeights:
+        assert model.url.startswith("https://")
+
+
+# GOOD: each model is a separate test case
+@pytest.mark.parametrize("model", [pytest.param(model, id=model.filename) for model in ModelWeights])
+def test_all_models_have_valid_urls(model):
+    assert model.url.startswith("https://")
+```
+
+**Gate tests that need an optional dependency with a named marker, never `pytest.importorskip`:**
+
+Do not call `pytest.importorskip(...)` (a pre-commit hook rejects it and `find_spec` probes), and do not use `pytest.skip()` merely because an optional package is missing. Build a named `skipif` marker and apply it to the test or class (use `pytest.param(..., marks=...)` for parametrized cases; fixtures cannot carry `skipif`, so decorate their consumers). Do not gate a whole module with `pytestmark = <named skipif>`: the gate is easy to overlook when a test is added later, so put the marker on each test class or function. Every skip marker is named `_requires_<what the test needs>` (`_requires_cuda_graphs_field`, or `_requires_no_cuda` for a test that needs CUDA absent): the leading underscore keeps it private to the test suite. Every `skipif` condition gets a name, so a test never carries an inline `pytest.mark.skipif(...)`; this holds for device and platform gates as much as for packages. A gate two or more modules use lives in `tests/_markers.py`. Import the optional package locally inside the test or helper that uses it. Reserve in-body `pytest.skip()` for conditions that can only be determined at runtime.
+
+```python
+import pytest
+from rfdetr import ModelConfig
+
+_requires_cuda_graphs_field = pytest.mark.skipif(
+    "cuda_graphs" not in ModelConfig.model_fields, reason="field not released"
+)
+
+
+@_requires_cuda_graphs_field
+def test_cuda_graphs_round_trips(): ...
 ```
 
 **Mark GPU-required or computationally heavy tests:**
@@ -271,10 +314,10 @@ This ensures your changes work across all supported platforms and Python version
 uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus
 
 # Run a specific test file
-uv run --no-sync pytest tests/test_model.py
+uv run --no-sync pytest tests/models/test_config.py
 
 # Run a specific test
-uv run --no-sync pytest tests/test_model.py::test_model_loading
+uv run --no-sync pytest tests/models/test_config.py::test_compile_field_reaches_plus_config
 ```
 
 ## Code Quality and Linting

@@ -64,3 +64,14 @@ repos:
           - src/LICENSE_HEADER.txt
           - --comment-style
           - "#"
+
+  - repo: local
+    hooks:
+      - id: no-optional-dependency-probes-in-tests
+        name: no importorskip or find_spec probes in tests
+        description: >-
+          Gate optional-dependency tests with a named skipif marker, never importorskip or a local find_spec probe (see
+          AGENTS.md, Test Organization).
+        language: pygrep
+        entry: '\b(importorskip|find_spec)\('
+        files: ^tests/.*\.py$

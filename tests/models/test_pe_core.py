@@ -27,6 +27,7 @@ from rfdetr_plus.models.pe_core import (
     get_pe_weight_decay_rate,
     undo_windowing,
 )
+from tests._markers import _requires_onnx
 
 _OUT_FEATURE_INDEXES = [2, 5, 8, 11]
 #: Keyword arguments of ``PECoreBackbone._build_encoder`` for a small valid encoder.
@@ -265,9 +266,11 @@ class TestPECoreEncoder:
         assert all(block.attn.forward.__func__ is _export_attention_forward for block in exported_copy.model.blocks)
         assert all(torch.equal(a, b) for a, b in zip(eager, exported))
 
+    @_requires_onnx
     def test_export_graph_has_no_empty_tensors(self) -> None:
         """timm's RoPE concat with an empty prefix slice is gone from export graphs: onnx2tf (TFLite) misreads it."""
-        onnx = pytest.importorskip("onnx")
+        import onnx  # local: the package is optional
+
         encoder = _encoder(patch_size=20, num_windows=2, grid=8).eval()
         encoder.export()
         buffer = io.BytesIO()

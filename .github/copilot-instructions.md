@@ -53,7 +53,7 @@ pre-commit run --all-files
 **Project Structure:**
 
 - `src/rfdetr_plus/` - XLarge, 2XLarge, Atto, Femto and Pico model implementations (`models/pe_core.py` holds the PE-Core-T encoder)
-- `tests/` - Test suite
+- `tests/` - Test suite, mirroring `src/rfdetr_plus/` (`tests/models/`, `tests/assets/`)
 - Depends on base `rfdetr` package (>=1.12.0,\<2) for all core functionality
 
 **Imports:**
@@ -72,6 +72,8 @@ pre-commit run --all-files
 - Features: Write comprehensive tests → Implement → Refactor
 - Use test classes and `@pytest.mark.parametrize` for organization
 - Mark GPU/heavy tests with `@pytest.mark.gpu`
+- Patch with the `mocker` fixture; use absolute imports in tests
+- Name every skip marker `_requires_<need>`; no inline `skipif`, no module-level `pytestmark` gate, no `importorskip`
 
 **Testing Requirements:**
 
