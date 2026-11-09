@@ -36,10 +36,6 @@ __all__ = [
     "PE_CORE_T_ENCODER",
     "PECoreBackbone",
     "PECoreEncoder",
-    "apply_windowing_with_rope",
-    "get_pe_lr_decay_rate",
-    "get_pe_weight_decay_rate",
-    "undo_windowing",
 ]
 
 #: ``ModelConfig.encoder`` value selecting the PE-Core-T backbone.
