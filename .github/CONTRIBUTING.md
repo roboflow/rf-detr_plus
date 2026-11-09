@@ -341,6 +341,10 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+> [!NOTE]
+>
+> `.pre-commit-config.yaml` sets `default_language_version: python3.12`, so the Python hooks need a `python3.12` interpreter on your `PATH` even when you develop on 3.10 or 3.11. With `uv`, run `uv python install 3.12` once.
+
 **Configuration:** See `.pre-commit-config.yaml` for all hooks and `pyproject.toml` for tool-specific settings (e.g., `[tool.ruff]`).
 
 ### Linting Tools

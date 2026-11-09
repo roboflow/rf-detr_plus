@@ -73,7 +73,7 @@ annotated_image = sv.LabelAnnotator().annotate(annotated_image, detections, labe
 
 ### Train Models
 
-RF-DETR+ models support fine-tuning with the same training API as core RF-DETR. You can train on your own dataset or use datasets from [Roboflow Universe](https://universe.roboflow.com/).
+RF-DETR+ models support fine-tuning with the same training API as core RF-DETR. You can train on your own dataset or use datasets from [Roboflow Universe](https://universe.roboflow.com/). Training needs the training extras of the core package, so install them first with `pip install "rfdetr[train]"`.
 
 ```python
 from rfdetr_plus import RFDETRXLarge
