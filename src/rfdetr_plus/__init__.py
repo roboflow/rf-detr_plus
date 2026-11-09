@@ -9,7 +9,7 @@ Platform-licensed detection models for the RF-DETR family: the large-scale DINOv
 the real-time PE-Core-T models (Atto, Femto and Pico).
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Roboflow, Inc"
 __author_email__ = "develop@roboflow.com"
 __license__ = "PML-1.0"
