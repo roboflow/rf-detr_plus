@@ -24,12 +24,15 @@ from rfdetr.detr import RFDETR
 from rfdetr.export._backend import _switch_to_export_mode
 from rfdetr.export.prepare import prepare_export_graph
 from rfdetr.models import build_model
+from rfdetr.utilities.imports import _IS_PEFT_INSTALLED
 from rfdetr.utilities.tensors import NestedTensor
 from timm.layers import resample_abs_pos_embed
 
 from rfdetr_plus import RFDETRAtto, RFDETRFemto, RFDETRPico
 from rfdetr_plus.models import RFDETRAttoConfig, RFDETRFemtoConfig, RFDETRPicoConfig
+from tests._markers import _requires_onnx
 
+_requires_peft = pytest.mark.skipif(not _IS_PEFT_INSTALLED, reason="peft not installed")
 _POS_EMBED_KEY = "backbone.0.encoder.model.pos_embed"
 _MODELS = {
     "atto": (RFDETRAtto, RFDETRAttoConfig),
@@ -146,9 +149,9 @@ def test_export_graph_traces_without_runtime_resampling(
     torch.testing.assert_close(exported[1], eager["pred_logits"], rtol=0, atol=1e-5)
 
 
+@_requires_onnx
 @pytest.mark.parametrize("name", _SIZES)
 def test_onnx_export(name: str, fake_checkpoints: dict[str, Path], tmp_path: Path) -> None:
-    pytest.importorskip("onnx")
     model = _load(name, fake_checkpoints[name])
 
     output = model.export(format="onnx", output_dir=str(tmp_path))
@@ -194,9 +197,9 @@ def test_training_updates_the_position_embedding(
     assert reloaded.model_config.encoder == "pe_core_t"
 
 
+@_requires_peft
 def test_backbone_lora_adapts_the_pe_attention(fake_checkpoints: dict[str, Path]) -> None:
     """``backbone_lora=True`` wraps PE-Core-T's attention qkv projections and trains only the adapters."""
-    pytest.importorskip("peft")
     model = _load("atto", fake_checkpoints["atto"], backbone_lora=True)
     network = model.model.model
 

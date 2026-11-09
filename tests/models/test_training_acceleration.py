@@ -6,7 +6,7 @@
 """GPU training smoke tests for RF-DETR+'s ``compile`` acceleration flag.
 
 This proves ``ModelConfig.compile`` survives an actual ``RFDETRXLarge.train()`` step on CUDA.
-``cuda_graphs`` remains covered as a config round-trip in ``tests/test_config.py`` when upstream
+``cuda_graphs`` remains covered as a config round-trip in ``tests/models/test_config.py`` when upstream
 releases the field; a train smoke test cannot claim capture/replay without an upstream activation
 oracle. Only ``RFDETRXLarge`` is exercised to respect the GPU-runner time budget.
 """

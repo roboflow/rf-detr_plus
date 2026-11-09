@@ -113,9 +113,16 @@ pre-commit run --all-files
 
 **Test Organization:**
 
+- Mirror the package in `tests/`: a test for `src/rfdetr_plus/<pkg>/` lives in `tests/<pkg>/` (for example `tests/models/`, `tests/assets/`). Each test folder is a package (`__init__.py`), and fixtures shared by several modules go in the nearest common `conftest.py`.
+- Use absolute imports in tests, including imports from other test modules and helpers (for example, `from tests.models.helpers import ...`).
+- Patch with the `mocker` fixture (`pytest-mock`, in the `tests` group) in preference to `with patch(...)` blocks and `@patch` stacks. Keep a `with` block only where a patch must end before the end of the test. Use `monkeypatch` for environment variables, `sys.modules` and attributes.
 - Group related tests in classes
-- Use `@pytest.mark.parametrize` with `pytest.param(..., id="name")`
+- Use `pytest.param(..., id="name")` only for a function, object, compound setup passed as one case, a per-case mark, or when the raw value would produce an unclear/empty ID (e.g., `""`); use bare string/number/boolean/`None` values otherwise, and do not maintain a parallel `ids` list
 - Mark GPU/heavy tests with `@pytest.mark.gpu`
+- Never use `pytest.importorskip`, and do not use `pytest.skip()` for missing optional dependencies (a pre-commit hook enforces this). Gate such tests with a named `pytest.mark.skipif` decorator applied to the test, the class, or a `pytest.param(..., marks=...)` case, never through a module-level `pytestmark`: a gate there is easy to overlook when a test is added later. Name every skip marker `_requires_<what the test needs>` (`_requires_cuda`, `_requires_no_cuda` for a test that needs it absent), private by its leading underscore, and never write an inline `pytest.mark.skipif(...)` condition on a test, class or case, device and platform gates included; a gate two or more modules use lives in `tests/_markers.py`. Import the optional package locally inside the test or helper. Reserve in-body `pytest.skip()` for conditions that can only be discovered at runtime
+- Avoid multiple validation cases in a single test - see [CONTRIBUTING.md](.github/CONTRIBUTING.md#avoid-multiple-validation-cases-in-a-single-test) for details
+- Fixtures return ready-to-use concrete state or a cohesive tuple of related state. Do not return a callable factory unless fixture-managed lifecycle is required; use an ordinary helper function for configurable construction.
+- Keep fixture dependencies minimal, unpack only the values a test needs, and avoid aliases or wrappers that merely rename or forward an object without adding meaning.
 
 **CI Information:** See [CI Testing](.github/CONTRIBUTING.md#ci-testing) in CONTRIBUTING.md for details on OS/Python version matrix and workflow configurations.
 

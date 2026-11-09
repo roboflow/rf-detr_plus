@@ -15,8 +15,6 @@ self-activating once upstream ``rfdetr`` releases that field (absent as of this 
 """
 
 import argparse
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -85,6 +83,12 @@ _PLUS_MODEL_CLASSES = [
     pytest.param(RFDETRPico, id="pico"),
 ]
 
+_requires_cuda_graphs_field = pytest.mark.skipif(
+    "cuda_graphs" not in ModelConfig.model_fields,
+    reason="rfdetr cuda_graphs field is unreleased upstream (develop #1479/#1481); "
+    "this test self-activates once a release exposes it",
+)
+
 
 class TestPlusConfigParity:
     """Every base ModelConfig field must be present and non-drifted on the Plus configs."""
@@ -147,11 +151,7 @@ def test_compile_field_reaches_plus_config(config_cls: type[ModelConfig]) -> Non
     assert cfg.compile is True
 
 
-@pytest.mark.skipif(
-    "cuda_graphs" not in ModelConfig.model_fields,
-    reason="rfdetr cuda_graphs field is unreleased upstream (develop #1479/#1481); "
-    "this test self-activates once a release exposes it",
-)
+@_requires_cuda_graphs_field
 @pytest.mark.parametrize("config_cls", _PLUS_CONFIG_CLASSES)
 def test_cuda_graphs_field_reaches_plus_config(config_cls: type[ModelConfig]) -> None:
     """The ``cuda_graphs`` flag must construct cleanly and round-trip through Plus configs."""
@@ -160,7 +160,7 @@ def test_cuda_graphs_field_reaches_plus_config(config_cls: type[ModelConfig]) ->
 
 
 @pytest.mark.parametrize("model_cls", _PLUS_MODEL_CLASSES)
-def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETR]) -> None:
+def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETR], tmp_path: Path) -> None:
     """rfdetr.from_checkpoint() must resolve back to the same Plus model class it was saved from.
 
     Model class resolution goes through RFDETR's _name_map/_model_map (matched on the checkpoint's
@@ -182,13 +182,9 @@ def test_from_checkpoint_resolves_plus_model_class(model_cls: type[RFDETR]) -> N
         "model": model_instance.model.model.state_dict(),
     }
 
-    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pth")
-    os.close(tmp_fd)
-    try:
-        torch.save(checkpoint, tmp_path)
-        recovered = from_checkpoint(tmp_path, accept_platform_model_license=True)
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    path = tmp_path / "checkpoint.pth"
+    torch.save(checkpoint, path)
+    recovered = from_checkpoint(path, accept_platform_model_license=True)
 
     assert isinstance(recovered, model_cls), (
         f"from_checkpoint returned {type(recovered).__name__}, expected {model_cls.__name__}"
