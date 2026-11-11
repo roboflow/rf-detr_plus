@@ -62,7 +62,7 @@ tests = [
   "pytest-mock>=3.12,<4",
   "rfdetr[train]",
   # The ONNX export regression tests skip without it; rfdetr[train] does not pull it in.
-  "onnx>=1.16,<2",
+  "onnx>=1.23.2,<2",
 ]
 
 [project.urls]
