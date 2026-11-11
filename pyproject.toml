@@ -38,7 +38,7 @@ dependencies = [
     # 1.12.0 adds the backbone registry, ModelConfig.dim_feedforward and the export-shape hook the PE-Core-T models use.
     "rfdetr>=1.12.0,<2",
     # PE-Core-T trunk (vit_pe_core_tiny_patch16_384) for RFDETRAtto / RFDETRFemto / RFDETRPico.
-    "timm>=1.0.27,<2",
+    "timm>=1.0.31,<2",
 ]
 
 [project.optional-dependencies]
