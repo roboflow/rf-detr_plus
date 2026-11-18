@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from onnx import ModelProto, TensorProto, helper, numpy_helper
 
-from rfdetr_plus.models.cpu_export import _compact_weights, _projector_matmuls, _share_constants
+from rfdetr_plus.models.cpu_export import _compact_weights, _output_stem, _projector_matmuls, _share_constants
 from tests._markers import _requires_onnx
 
 _SIDE = 64  # a 64 x 64 weight has exactly the 4096 elements from which weights are stored compactly
@@ -305,3 +305,30 @@ class TestFailLoudGuards:
 
         with pytest.raises(ValueError, match="Unsupported spatial projection"):
             _projector_matmuls(model.graph)
+
+
+class TestOutputStem:
+    """The ``output_name`` argument is a full stem: directory parts are dropped and the export extension stripped."""
+
+    @pytest.mark.parametrize("output_name", [None, ""])
+    def test_default_stem_names_the_size(self, output_name: str | None) -> None:
+        assert _output_stem("atto", output_name) == "atto-cpu"
+
+    @pytest.mark.parametrize(
+        ("output_name", "expected"),
+        [
+            ("detector", "detector"),
+            ("detector.onnx", "detector"),
+            ("DETECTOR.ONNX", "DETECTOR"),
+            ("detector-v1.2", "detector-v1.2"),
+            ("models/detector.onnx", "detector"),
+            ("models\\detector", "detector"),
+        ],
+    )
+    def test_stem_keeps_the_basename_without_the_export_extension(self, output_name: str, expected: str) -> None:
+        assert _output_stem("femto", output_name) == expected
+
+    @pytest.mark.parametrize("output_name", ["models/", "models\\"])
+    def test_name_without_a_filename_is_rejected(self, output_name: str) -> None:
+        with pytest.raises(ValueError, match="non-empty filename stem"):
+            _output_stem("pico", output_name)

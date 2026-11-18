@@ -472,20 +472,34 @@ def test_cpu_export_rejects_a_non_positive_size_limit_before_writing(
     assert list(tmp_path.iterdir()) == []
 
 
-def _traced_graph_export(attention_nodes: int, matmul_names: list[str]):
-    """A stand-in for ``RFDETR.export`` that writes a tiny opset-23 graph with the given operator inventory."""
+def _traced_graph_export(
+    attention_nodes: int, matmul_names: list[str], *, custom_domain: bool = True, rotary: bool = True
+):
+    """A stand-in for ``RFDETR.export`` that writes a tiny graph with the given operator inventory.
+
+    The base TorchScript exporter emits attention and rotary nodes in the private ``rfdetr_pe`` domain, so the stand-in
+    does too unless ``custom_domain`` or ``rotary`` is switched off.
+    """
 
     def export(*, output_dir: str, **kwargs: object) -> str:
         import onnx
         from onnx import TensorProto, helper
 
-        nodes = [helper.make_node("Attention", ["x", "x", "x"], [f"a{i}"]) for i in range(attention_nodes)]
+        domain = "rfdetr_pe" if custom_domain else ""
+        nodes = [
+            helper.make_node("Attention", ["x", "x", "x"], [f"a{i}"], domain=domain) for i in range(attention_nodes)
+        ]
+        if rotary:
+            nodes.append(helper.make_node("RotaryEmbedding", ["x", "x", "x"], ["rot"], domain=domain))
         nodes += [helper.make_node("MatMul", ["x", "x"], [f"m{i}"], name=name) for i, name in enumerate(matmul_names)]
         outputs = [helper.make_tensor_value_info(node.output[0], TensorProto.FLOAT, [2, 2]) for node in nodes]
         graph = helper.make_graph(
             nodes, "traced", [helper.make_tensor_value_info("x", TensorProto.FLOAT, [2, 2])], outputs
         )
-        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 23)], ir_version=10)
+        opsets = [helper.make_opsetid("", 23)]
+        if custom_domain:
+            opsets.append(helper.make_opsetid("rfdetr_pe", 1))
+        model = helper.make_model(graph, opset_imports=opsets, ir_version=10)
         path = Path(output_dir) / "traced.onnx"
         onnx.save(model, path)
         return str(path)
@@ -508,9 +522,34 @@ class TestCpuExportGraphGuards:
         self, fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         model = _load("femto", fake_checkpoints["femto"])
-        monkeypatch.setattr(model, "export", _traced_graph_export(0, _ENCODER_PROJECTIONS))
+        monkeypatch.setattr(model, "export", _traced_graph_export(1, _ENCODER_PROJECTIONS))
 
         with pytest.raises(ValueError, match="Expected one fused attention operator in each PE block"):
+            model.export_cpu_onnx(tmp_path)
+
+    @pytest.mark.parametrize(
+        ("stand_in", "missing"),
+        [
+            pytest.param(
+                _traced_graph_export(12, _ENCODER_PROJECTIONS, custom_domain=False), "Attention", id="default-domain"
+            ),
+            pytest.param(
+                _traced_graph_export(12, _ENCODER_PROJECTIONS, rotary=False), "RotaryEmbedding", id="no-rotary"
+            ),
+        ],
+    )
+    def test_trace_without_the_custom_nodes_is_rejected(
+        self,
+        stand_in: object,
+        missing: str,
+        fake_checkpoints: dict[str, Path],
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        model = _load("femto", fake_checkpoints["femto"])
+        monkeypatch.setattr(model, "export", stand_in)
+
+        with pytest.raises(ValueError, match=f"no rfdetr_pe::{missing} node"):
             model.export_cpu_onnx(tmp_path)
 
     def test_missing_encoder_projections_are_rejected(
