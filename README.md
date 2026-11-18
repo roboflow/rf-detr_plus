@@ -82,6 +82,25 @@ model = RFDETRXLarge(accept_platform_model_license=True)
 model.train(dataset_dir="path/to/dataset", epochs=50, lr=1e-4)
 ```
 
+### Export Atto, Femto or Pico for CPU
+
+Install `pip install "rfdetr-plus[cpu-export]"`. The compact ONNX export uses batch size one at the detector's configured resolution and targets the standard encoder and decoder layout for each size. It derives its weights from the loaded model and computes activation scales at inference time.
+
+```python
+from rfdetr import RFDETRInference, from_checkpoint
+from rfdetr_plus import RFDETRAtto
+
+# Use RFDETRFemto or RFDETRPico the same way.
+pretrained = RFDETRAtto(device="cpu")
+pretrained.export_cpu_onnx("output/pretrained")
+
+trained = from_checkpoint("checkpoint_best_total.pth", device="cpu")
+artifact = trained.export_cpu_onnx("output/finetuned")
+predictions = RFDETRInference(artifact, device="cpu").predict("image.jpg")
+```
+
+The encoder uses fused rotary and attention operators and selected INT8 matrix multiplications. Atto also stores large remaining filters as scaled INT8. Femto and Pico use FP16 storage for those filters. Compare the compact export with `model.export(format="onnx")` on your validation images and target CPU to measure the accuracy and latency trade-off.
+
 ## Documentation
 
 Visit the [RF-DETR documentation website](https://rfdetr.roboflow.com) to learn more about training, export, deployment, and the full model lineup.

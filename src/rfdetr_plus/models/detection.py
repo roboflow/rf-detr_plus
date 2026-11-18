@@ -4,6 +4,7 @@
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
@@ -133,7 +134,15 @@ class RFDETRPicoConfig(RFDETRPECoreTConfig):
     pretrain_weights: PathLikeStr | None = "rf-detr-pico.pth"
 
 
-class RFDETRAtto(RFDETR):
+class _PECPUExportMixin:
+    def export_cpu_onnx(self, output_dir: str | Path = "output") -> Path:
+        """Export the loaded detector for CPU inference with ONNX Runtime."""
+        from rfdetr_plus.models.cpu_export import export_cpu_onnx
+
+        return export_cpu_onnx(self, output_dir)
+
+
+class RFDETRAtto(_PECPUExportMixin, RFDETR):
     size: Literal["rfdetr-atto"] = "rfdetr-atto"
     _model_config_class = RFDETRAttoConfig
 
@@ -142,7 +151,7 @@ class RFDETRAtto(RFDETR):
         super().__init__(**kwargs)
 
 
-class RFDETRFemto(RFDETR):
+class RFDETRFemto(_PECPUExportMixin, RFDETR):
     size: Literal["rfdetr-femto"] = "rfdetr-femto"
     _model_config_class = RFDETRFemtoConfig
 
@@ -151,7 +160,7 @@ class RFDETRFemto(RFDETR):
         super().__init__(**kwargs)
 
 
-class RFDETRPico(RFDETR):
+class RFDETRPico(_PECPUExportMixin, RFDETR):
     size: Literal["rfdetr-pico"] = "rfdetr-pico"
     _model_config_class = RFDETRPicoConfig
 

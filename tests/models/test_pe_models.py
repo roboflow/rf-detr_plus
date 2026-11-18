@@ -239,3 +239,59 @@ def test_inference_optimization_matches_eager_predictions(
     else:
         # bf16 scores drift from fp32's by up to ~0.05, as core models' do, and vary by CPU, so they are not compared.
         assert np.isfinite(optimized.confidence).all()
+
+
+@pytest.mark.parametrize("name", _SIZES)
+def test_cpu_onnx_preserves_custom_detector(name: str, fake_checkpoints: dict[str, Path], tmp_path: Path) -> None:
+    """A custom three-class checkpoint with four logits also has four box coordinates."""
+    import onnx
+    import onnxruntime
+
+    # Fine-tuned detectors can have a different resolution as well as a different head.
+    model = _load(name, fake_checkpoints[name], **({"resolution": 400} if name == "atto" else {}))
+    network = model.model.model
+    network.reinitialize_detection_head(4)
+    model.model_config.num_classes = 3
+    # A distinct learned classifier in each variant makes substitution of COCO weights observable.
+    with torch.no_grad():
+        for module_name, module in network.named_modules():
+            if isinstance(module, torch.nn.Linear) and "class_embed" in module_name:
+                module.weight.zero_()
+                module.bias.copy_(torch.tensor([2.5, -3.0, 0.25, 0.5]))
+    path = model.export_cpu_onnx(tmp_path)
+    ops = [node.op_type for node in onnx.load(path).graph.node]
+    assert ops.count("RotaryEmbedding") == 24
+    assert ops.count("Attention") == 12
+    assert ops.count("MatMulInteger") == (42 if name == "atto" else 37)
+    options = onnxruntime.SessionOptions()
+    options.intra_op_num_threads = 2
+    session = onnxruntime.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
+    input_info = session.get_inputs()[0]
+    assert input_info.shape[-2:] == [model.model_config.resolution] * 2
+    x = np.random.default_rng(42).normal(size=input_info.shape).astype(np.float32)
+    boxes, logits = session.run(["dets", "labels"], {input_info.name: x})
+    assert boxes.shape == logits.shape == (1, model.model_config.num_queries, 4)
+    assert np.isfinite(boxes).all()
+    np.testing.assert_allclose(logits, np.broadcast_to([2.5, -3.0, 0.25, 0.5], logits.shape), atol=1e-5)
+
+
+def test_failed_cpu_export_preserves_previous_artifact(
+    fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An interrupted trace must restore ordinary export mode and leave the previous result readable."""
+    from rfdetr_plus.models.pe_core import _CPU_EXPORT
+
+    model = _load("atto", fake_checkpoints["atto"])
+    artifact = tmp_path / "rfdetr-atto-cpu.onnx"
+    artifact.write_bytes(b"previous export")
+
+    def fail_trace(**kwargs: object) -> None:
+        assert _CPU_EXPORT.get()
+        raise ValueError("test trace failed")
+
+    monkeypatch.setattr(model, "export", fail_trace)
+    with pytest.raises(ValueError, match="test trace failed"):
+        model.export_cpu_onnx(tmp_path)
+    assert not _CPU_EXPORT.get()
+    assert artifact.read_bytes() == b"previous export"
+    assert list(tmp_path.iterdir()) == [artifact]

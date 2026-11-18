@@ -42,6 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cpu-export = ["rfdetr>=1.12.1", "torch>=2.11", "onnx>=1.19,<2", "onnxruntime>=1.23.2,<2"]
 
 [dependency-groups]
 
@@ -62,7 +63,9 @@ tests = [
   "pytest-mock>=3.17.0,<4",
   "rfdetr[train]",
   # The ONNX export regression tests skip without it; rfdetr[train] does not pull it in.
-  "onnx>=1.16,<2",
+  "onnx>=1.19,<2",
+  "onnxruntime>=1.23.2,<2",
+  "torch>=2.11",
 ]
 
 [project.urls]

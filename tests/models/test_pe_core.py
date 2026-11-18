@@ -18,6 +18,7 @@ from rfdetr.models.backbone import build_backbone
 from timm.layers import resample_abs_pos_embed
 
 from rfdetr_plus.models.pe_core import (
+    _CPU_EXPORT,
     PE_CORE_T_ENCODER,
     PECoreBackbone,
     PECoreEncoder,
@@ -265,6 +266,35 @@ class TestPECoreEncoder:
         assert all("forward" not in block.attn.__dict__ for block in encoder.model.blocks)
         assert all(block.attn.forward.__func__ is _export_attention_forward for block in exported_copy.model.blocks)
         assert all(torch.equal(a, b) for a, b in zip(eager, exported))
+
+    @pytest.mark.parametrize("num_windows", [1, 2])
+    def test_compact_onnx_attention_matches_timm(self, num_windows: int) -> None:
+        """Check the runtime's fused RoPE and attention against timm, including window and prefix ordering."""
+        import onnx
+        import onnxruntime
+
+        from rfdetr_plus.models.cpu_export import _upgrade_attention
+
+        torch.manual_seed(17)
+        encoder = _encoder(patch_size=20, num_windows=num_windows, grid=8).eval()
+        images = torch.randn(1, 3, 160, 160)
+        with torch.no_grad():
+            eager = encoder(images)
+        encoder.export()
+        buffer = io.BytesIO()
+        token = _CPU_EXPORT.set(True)
+        try:
+            torch.onnx.export(encoder, (images,), buffer, opset_version=20, dynamo=False, input_names=["image"])
+        finally:
+            _CPU_EXPORT.reset(token)
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = 1
+        graph = _upgrade_attention(onnx.load_from_string(buffer.getvalue()))
+        session = onnxruntime.InferenceSession(graph.SerializeToString(), options, providers=["CPUExecutionProvider"])
+        actual = session.run(None, {"image": images.numpy()})
+        assert len(actual) == len(eager)
+        for expected, features in zip(eager, actual):
+            torch.testing.assert_close(torch.from_numpy(features), expected, atol=2e-5, rtol=1e-4)
 
     @_requires_onnx
     def test_export_graph_has_no_empty_tensors(self) -> None:
@@ -618,6 +648,7 @@ class TestPECoreBackbone:
     def test_frozen_encoder_params_are_excluded(self) -> None:
         backbone = PECoreBackbone(
             PE_CORE_T_ENCODER,
+            _CPU_EXPORT,
             out_channels=128,
             out_feature_indexes=_OUT_FEATURE_INDEXES,
             projector_scale=["P4"],
