@@ -36,7 +36,7 @@ keywords = ["machine-learning", "deep-learning", "vision", "ML", "DL", "AI", "DE
 
 dependencies = [
     # 1.12.0 adds the backbone registry, ModelConfig.dim_feedforward and the export-shape hook the PE-Core-T models use.
-    "rfdetr>=1.12.0,<2",
+    "rfdetr>=1.12.1,<2",
     # PE-Core-T trunk (vit_pe_core_tiny_patch16_384) for RFDETRAtto / RFDETRFemto / RFDETRPico.
     "timm>=1.0.27,<2",
 ]
@@ -46,7 +46,7 @@ dependencies = [
 onnx = [
     # Same floor as core `dependencies`: the 1.12.1 changes (batched prediction, early config and input validation) do
     # not touch the export path. The `onnx` extra adds core's per-Python ONNX Runtime cap (below 1.24 on Python 3.10).
-    "rfdetr[onnx]>=1.12.0",
+    "rfdetr[onnx]>=1.12.1",
     "torch>=2.11",
     # The traced graph is converted to ONNX opset 23 in `pe_cpu_export._upgrade_attention`.
     "onnx>=1.19,<2",
@@ -73,7 +73,7 @@ tests = [
   "pytest-mock>=3.17.0,<4",
   # ONNX tooling (onnx, onnxruntime, torch floor) comes from the `onnx` extra: install with `--extra onnx`.
   # Same rfdetr floor as core `dependencies` and the `onnx` extra.
-  "rfdetr[train]>=1.12.0",
+  "rfdetr[train]>=1.12.1",
 ]
 
 [project.urls]
