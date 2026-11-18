@@ -135,11 +135,11 @@ class RFDETRPicoConfig(RFDETRPECoreTConfig):
 
 
 class _PECPUExportMixin:
-    def export_cpu_onnx(self, output_dir: str | Path = "output") -> Path:
-        """Export the loaded detector for CPU inference with ONNX Runtime."""
+    def export_cpu_onnx(self, output_dir: str | Path = "output", *, size_limit_bytes: int | None = None) -> Path:
+        """Export the loaded detector for ONNX Runtime CPU, optionally enforcing a strict file-size limit."""
         from rfdetr_plus.models.cpu_export import export_cpu_onnx
 
-        return export_cpu_onnx(self, output_dir)
+        return export_cpu_onnx(self, output_dir, size_limit_bytes=size_limit_bytes)
 
 
 class RFDETRAtto(_PECPUExportMixin, RFDETR):

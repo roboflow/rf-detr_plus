@@ -90,14 +90,16 @@ Install `pip install "rfdetr-plus[cpu-export]"`. The compact ONNX export uses ba
 from rfdetr import RFDETRInference, from_checkpoint
 from rfdetr_plus import RFDETRAtto
 
-# Use RFDETRFemto or RFDETRPico the same way.
+# The released COCO Atto fits this optional 8 MB storage budget.
 pretrained = RFDETRAtto(device="cpu")
-pretrained.export_cpu_onnx("output/pretrained")
+pretrained.export_cpu_onnx("output/pretrained", size_limit_bytes=8_000_000)
 
 trained = from_checkpoint("checkpoint_best_total.pth", device="cpu")
 artifact = trained.export_cpu_onnx("output/finetuned")
 predictions = RFDETRInference(artifact, device="cpu").predict("image.jpg")
 ```
+
+The optional `size_limit_bytes` checks the complete uncompressed file before publishing the artifact. The call raises `ValueError` if the file reaches or exceeds that limit. The reference Femto and Pico CPU exports are 11.77 MB and 13.10 MB respectively.
 
 The encoder uses fused rotary and attention operators and selected INT8 matrix multiplications. Atto also stores large remaining filters as scaled INT8. Femto and Pico use FP16 storage for those filters. Compare the compact export with `model.export(format="onnx")` on your validation images and target CPU to measure the accuracy and latency trade-off.
 

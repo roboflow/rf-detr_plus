@@ -258,7 +258,10 @@ def test_cpu_onnx_preserves_custom_detector(name: str, fake_checkpoints: dict[st
             if isinstance(module, torch.nn.Linear) and "class_embed" in module_name:
                 module.weight.zero_()
                 module.bias.copy_(torch.tensor([2.5, -3.0, 0.25, 0.5]))
-    path = model.export_cpu_onnx(tmp_path)
+    limit = 8_000_000 if name == "atto" else None
+    path = model.export_cpu_onnx(tmp_path, size_limit_bytes=limit)
+    if limit is not None:
+        assert path.stat().st_size < limit
     ops = [node.op_type for node in onnx.load(path).graph.node]
     assert ops.count("RotaryEmbedding") == 24
     assert ops.count("Attention") == 12
@@ -295,3 +298,14 @@ def test_failed_cpu_export_preserves_previous_artifact(
     assert not _CPU_EXPORT.get()
     assert artifact.read_bytes() == b"previous export"
     assert list(tmp_path.iterdir()) == [artifact]
+
+
+def test_cpu_export_rejects_exact_size_limit(fake_checkpoints: dict[str, Path], tmp_path: Path) -> None:
+    """Even equality exceeds a strict budget; another export cannot displace a previous artifact on failure."""
+    model = _load("atto", fake_checkpoints["atto"])
+    artifact = model.export_cpu_onnx(tmp_path)
+    size = artifact.stat().st_size
+    artifact.write_bytes(b"previous")
+    with pytest.raises(ValueError, match=f"must be smaller than {size} bytes"):
+        model.export_cpu_onnx(tmp_path, size_limit_bytes=size)
+    assert artifact.read_bytes() == b"previous"

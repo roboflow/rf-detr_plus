@@ -154,12 +154,18 @@ def _projector_matmuls(graph: GraphProto) -> None:
     graph.initializer.extend(kept)
 
 
-def export_cpu_onnx(detector: RFDETR, output_dir: str | Path = "output") -> Path:
+def export_cpu_onnx(
+    detector: RFDETR, output_dir: str | Path = "output", *, size_limit_bytes: int | None = None
+) -> Path:
     """Export the loaded PE detector with dynamic encoder INT8 and compact weight storage.
 
     The file uses batch one and the configured model resolution. Quantization scales for weights
     derive from the live checkpoint. ONNX Runtime computes activation scales at inference time.
+    When provided, the complete uncompressed file must be strictly smaller than size_limit_bytes.
     """
+    if size_limit_bytes is not None and (type(size_limit_bytes) is not int or size_limit_bytes <= 0):
+        raise ValueError("size_limit_bytes must be a positive integer")
+
     try:
         import onnx
         from onnxruntime.quantization import QuantType, quantize_dynamic
@@ -225,5 +231,10 @@ def export_cpu_onnx(detector: RFDETR, output_dir: str | Path = "output") -> Path
         _compact_weights(compact, pack_int8=detector.size == "rfdetr-atto")
         onnx.checker.check_model(compact)
         onnx.save(compact, temporary)
+        byte_count = temporary.stat().st_size
+        if size_limit_bytes is not None and byte_count >= size_limit_bytes:
+            raise ValueError(
+                f"{detector.size} uses {byte_count} bytes and must be smaller than {size_limit_bytes} bytes"
+            )
         temporary.replace(target)
     return target
