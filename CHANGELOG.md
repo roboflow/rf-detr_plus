@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `export_cpu_onnx()` on `RFDETRAtto`, `RFDETRFemto` and `RFDETRPico`: opt-in compact ONNX export for CPU inference, with an optional strict `size_limit_bytes` budget for the exported file. It needs the new optional `onnx` extra (`pip install "rfdetr_plus[onnx]"`). ([#83](https://github.com/roboflow/rf-detr_plus/pull/83))
+
 ## 1.2.0 — 2026-11-09
 
 ### Added

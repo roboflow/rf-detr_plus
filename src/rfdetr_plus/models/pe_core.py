@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 import types
+from contextvars import ContextVar
 from typing import Any
 
 import timm
@@ -31,6 +32,7 @@ from torch.nn.functional import scaled_dot_product_attention
 from torch.utils.checkpoint import checkpoint
 
 logger = get_logger()
+_CPU_EXPORT: ContextVar[bool] = ContextVar("pe_cpu_export", default=False)
 
 __all__ = [
     "PE_CORE_T_ENCODER",
@@ -131,11 +133,22 @@ def _export_attention_forward(
     B, N, _ = x.shape
     q, k, v = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4).unbind(0)
     q, k = self.q_norm(q), self.k_norm(k)
-    if rope is not None:
+    compact_cpu = _CPU_EXPORT.get()
+    if compact_cpu:
+        if rope is None or getattr(self, "rotate_half", False) or attn_mask is not None or is_causal:
+            raise ValueError("Unsupported PE rotary attention configuration for compact CPU export")
+        sin, cos = rope.chunk(2, dim=-1)
+        sin = sin[..., ::2].reshape(B, N, self.head_dim // 2)
+        cos = cos[..., ::2].reshape(B, N, self.head_dim // 2)
+        q = _RotaryCPU.apply(q, cos, sin)
+        k = _RotaryCPU.apply(k, cos, sin)
+    elif rope is not None:
         half = getattr(self, "rotate_half", False)
         q = apply_rot_embed_cat(q, rope, half=half).type_as(v)
         k = apply_rot_embed_cat(k, rope, half=half).type_as(v)
-    if self.fused_attn:
+    if compact_cpu:
+        x = _AttentionCPU.apply(q, k, v)
+    elif self.fused_attn:
         x = scaled_dot_product_attention(
             q, k, v, attn_mask=attn_mask, dropout_p=self.attn_drop.p if self.training else 0.0, is_causal=is_causal
         )
@@ -606,3 +619,29 @@ class PECoreBackbone(Backbone):
 
 
 register_backbone(PE_CORE_T_ENCODER, PECoreBackbone)
+
+
+class _RotaryCPU(torch.autograd.Function):
+    """Trace interleaved RoPE as one ONNX RotaryEmbedding with per-window tables."""
+
+    @staticmethod
+    def forward(ctx: Any, x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
+        even, odd = x[..., ::2], x[..., 1::2]
+        cos, sin = cos.unsqueeze(1), sin.unsqueeze(1)
+        return torch.stack((even * cos - odd * sin, odd * cos + even * sin), dim=-1).flatten(-2)
+
+    @staticmethod
+    def symbolic(g: Any, x: Any, cos: Any, sin: Any) -> Any:
+        return g.op("rfdetr_pe::RotaryEmbedding", x, cos, sin, interleaved_i=1).setType(x.type())
+
+
+class _AttentionCPU(torch.autograd.Function):
+    """Trace unmasked scaled dot-product attention as one ONNX Attention operator."""
+
+    @staticmethod
+    def forward(ctx: Any, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
+        return scaled_dot_product_attention(q, k, v)
+
+    @staticmethod
+    def symbolic(g: Any, q: Any, k: Any, v: Any) -> Any:
+        return g.op("rfdetr_pe::Attention", q, k, v).setType(q.type())

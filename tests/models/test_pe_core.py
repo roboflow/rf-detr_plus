@@ -18,6 +18,7 @@ from rfdetr.models.backbone import build_backbone
 from timm.layers import resample_abs_pos_embed
 
 from rfdetr_plus.models.pe_core import (
+    _CPU_EXPORT,
     PE_CORE_T_ENCODER,
     PECoreBackbone,
     PECoreEncoder,
@@ -267,6 +268,36 @@ class TestPECoreEncoder:
         assert all(torch.equal(a, b) for a, b in zip(eager, exported))
 
     @_requires_onnx
+    @pytest.mark.parametrize("num_windows", [1, 2])
+    def test_compact_onnx_attention_matches_timm(self, num_windows: int) -> None:
+        """Check the runtime's fused RoPE and attention against timm, including window and prefix ordering."""
+        import onnx
+        import onnxruntime
+
+        from rfdetr_plus.models.pe_cpu_export import _upgrade_attention
+
+        torch.manual_seed(17)
+        encoder = _encoder(patch_size=20, num_windows=num_windows, grid=8).eval()
+        images = torch.randn(1, 3, 160, 160)
+        with torch.no_grad():
+            eager = encoder(images)
+        encoder.export()
+        buffer = io.BytesIO()
+        token = _CPU_EXPORT.set(True)
+        try:
+            torch.onnx.export(encoder, (images,), buffer, opset_version=20, dynamo=False, input_names=["image"])
+        finally:
+            _CPU_EXPORT.reset(token)
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = 1
+        graph = _upgrade_attention(onnx.load_from_string(buffer.getvalue()))
+        session = onnxruntime.InferenceSession(graph.SerializeToString(), options, providers=["CPUExecutionProvider"])
+        actual = session.run(None, {"image": images.numpy()})
+        assert len(actual) == len(eager)
+        for expected, features in zip(eager, actual):
+            torch.testing.assert_close(torch.from_numpy(features), expected, atol=2e-5, rtol=1e-4)
+
+    @_requires_onnx
     def test_export_graph_has_no_empty_tensors(self) -> None:
         """timm's RoPE concat with an empty prefix slice is gone from export graphs: onnx2tf (TFLite) misreads it."""
         import onnx  # local: the package is optional
@@ -426,6 +457,32 @@ class TestPECoreEncoder:
 
         with pytest.raises(NotImplementedError, match="is_causal"):
             _export_attention_forward(attn, x, is_causal=True)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "rotate_half"),
+        [
+            pytest.param({"rope": None}, False, id="missing-rope"),
+            pytest.param(
+                {"rope": torch.randn(4, 8), "attn_mask": torch.ones(4, 4, dtype=torch.bool)}, False, id="mask"
+            ),
+            pytest.param({"rope": torch.randn(4, 8), "is_causal": True}, False, id="causal"),
+            pytest.param({"rope": torch.randn(4, 8)}, True, id="rotate-half"),
+        ],
+    )
+    def test_compact_cpu_attention_rejects_unsupported_rotary_configurations(
+        self, kwargs: dict, rotate_half: bool
+    ) -> None:
+        """The compact CPU export fuses one rotary layout only; anything else fails instead of exporting wrong math."""
+        attn = _encoder().model.blocks[0].attn
+        attn.rotate_half = rotate_half
+        x = torch.randn(1, 4, attn.qkv.in_features)
+
+        token = _CPU_EXPORT.set(True)
+        try:
+            with pytest.raises(ValueError, match="Unsupported PE rotary attention configuration"):
+                _export_attention_forward(attn, x, **kwargs)
+        finally:
+            _CPU_EXPORT.reset(token)
 
     def test_export_keeps_timm_attention_for_blocks_it_cannot_reproduce(self, caplog: pytest.LogCaptureFixture) -> None:
         """A block the export attention cannot reproduce keeps timm's forward and the export says so."""

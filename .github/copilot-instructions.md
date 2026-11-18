@@ -24,8 +24,8 @@ RF-DETR+ is an extension package providing XLarge and 2XLarge (DINOv2) and Atto,
 **Package Manager:** This project uses `uv` for all dependency management.
 
 ```bash
-# Development setup
-uv sync --all-groups
+# Development setup (`--all-extras` adds the `onnx` extra the export tests need)
+uv sync --all-groups --all-extras
 
 # Run tests (always before committing)
 uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus --cov-report=xml

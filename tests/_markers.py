@@ -6,6 +6,8 @@
 """Skip markers shared by several test modules; a gate used by one module lives in that module."""
 
 import pytest
-from rfdetr.export.imports import _IS_ONNX_INSTALLED
+from rfdetr.export.imports import _IS_ONNX_INSTALLED, _IS_ONNXRUNTIME_INSTALLED
 
-_requires_onnx = pytest.mark.skipif(not _IS_ONNX_INSTALLED, reason="onnx not installed")
+_requires_onnx = pytest.mark.skipif(
+    not (_IS_ONNX_INSTALLED and _IS_ONNXRUNTIME_INSTALLED), reason="onnx and onnxruntime not installed"
+)

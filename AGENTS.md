@@ -60,8 +60,8 @@ As an AI agent contributing to RF-DETR+, you are responsible for:
 # Install uv (if not already installed)
 pip install uv
 
-# Full development environment (always use this)
-uv sync --all-groups
+# Full development environment (always use this; the `onnx` extra carries the ONNX tooling the export tests need)
+uv sync --all-groups --all-extras
 ```
 
 **Prerequisites:** Python >=3.10 (tested on 3.10-3.13)
@@ -204,7 +204,7 @@ uv run twine check --strict dist/*
 
 ### Making Changes
 
-1. **Setup:** `uv sync --all-groups`
+1. **Setup:** `uv sync --all-groups --all-extras`
 2. **Before changes:** Run tests to establish baseline
 3. **Development:**
     - Make minimal, focused changes

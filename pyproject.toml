@@ -42,6 +42,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Compact CPU export (`export_cpu_onnx` on RFDETRAtto / RFDETRFemto / RFDETRPico); install with `rfdetr-plus[onnx]`.
+onnx = [
+    # Same floor as core `dependencies`: the 1.12.1 changes (batched prediction, early config and input validation) do
+    # not touch the export path. The `onnx` extra adds core's per-Python ONNX Runtime cap (below 1.24 on Python 3.10).
+    "rfdetr[onnx]>=1.12.0",
+    "torch>=2.11",
+    # The traced graph is converted to ONNX opset 23 in `pe_cpu_export._upgrade_attention`.
+    "onnx>=1.19,<2",
+    # 1.23.2 ships Python 3.10 wheels, so it satisfies the core cap above.
+    "onnxruntime>=1.23.2,<2",
+]
 
 [dependency-groups]
 
@@ -60,9 +71,9 @@ tests = [
   "pytest-cov>=7.1.0,<8",
   "pytest-xdist>=3.8.0,<4",
   "pytest-mock>=3.17.0,<4",
-  "rfdetr[train]",
-  # The ONNX export regression tests skip without it; rfdetr[train] does not pull it in.
-  "onnx>=1.16,<2",
+  # ONNX tooling (onnx, onnxruntime, torch floor) comes from the `onnx` extra: install with `--extra onnx`.
+  # Same rfdetr floor as core `dependencies` and the `onnx` extra.
+  "rfdetr[train]>=1.12.0",
 ]
 
 [project.urls]

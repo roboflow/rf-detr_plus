@@ -4,6 +4,7 @@
 # Licensed under the Platform Model License 1.0 [see LICENSE for details]
 # ------------------------------------------------------------------------
 
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
@@ -133,7 +134,52 @@ class RFDETRPicoConfig(RFDETRPECoreTConfig):
     pretrain_weights: PathLikeStr | None = "rf-detr-pico.pth"
 
 
-class RFDETRAtto(RFDETR):
+class _PECPUExportMixin:
+    def export_cpu_onnx(
+        self,
+        output_dir: str | Path = "output",
+        *,
+        size_limit_bytes: int | None = None,
+        output_name: str | None = None,
+    ) -> Path:
+        """Export the loaded detector to a compact ONNX file for ONNX Runtime on CPU (experimental).
+
+        Unlike ``export(format="onnx", quantization="int8")``, which writes a static QDQ model with 8-bit weights and
+        activations and requires ``calibration_data``, this export is calibration-free: selected linear projections
+        use dynamic INT8 and the other large filters are stored compactly (INT8 codes for Atto, FP16 for Femto and
+        Pico). The file targets the ONNX Runtime CPU execution provider, uses batch one at the configured resolution
+        and opset 23; the tested runtime floor is ``onnxruntime>=1.23.2``. See
+        :func:`rfdetr_plus.models.pe_cpu_export.export_pe_cpu_onnx` for the per-size recipe.
+
+        Args:
+            output_dir: Directory the file is written to; created when missing.
+            size_limit_bytes: Optional byte budget. When given, the complete uncompressed file must be strictly
+                smaller than this many bytes. Any integral number is accepted (``int``, ``numpy.int64``, ...);
+                ``bool`` is not. A failed export, including one over budget, leaves any previous artifact in place.
+            output_name: Full file stem, following the full-stem semantics of the base ``export(output_name=...)``:
+                directory components are dropped, a known export extension such as ``.onnx`` is stripped and other
+                dots are kept. ``None`` or ``""`` selects the default ``{size}-cpu``.
+
+        Returns:
+            Path of the written ``.onnx`` file, ``output_dir / f"{stem}.onnx"``.
+
+        Raises:
+            TypeError: If ``size_limit_bytes`` is a ``bool`` or not an integral number. Checked before tracing.
+            ValueError: Before tracing, if ``size_limit_bytes`` is zero or negative, if ``size`` has no export
+                recipe, if ``model_config.encoder`` is not the PE-Core-T encoder, if ``model_config.dec_layers`` is
+                below 2 for Femto or Pico, or if ``output_name`` reduces to an empty stem. After tracing, if the
+                traced graph does not match the size's recipe (custom attention nodes, twelve fused attention
+                operators, projection and ``MatMulInteger`` counts, projector convolution layout, compacted scopes),
+                if a filter cannot be stored compactly, or if the file reaches or exceeds ``size_limit_bytes``.
+            ImportError: If ``onnx`` or ``onnxruntime`` is not installed; raised only after the checks above.
+            onnx.checker.ValidationError: If the final graph fails ``onnx.checker.check_model``.
+        """
+        from rfdetr_plus.models.pe_cpu_export import export_pe_cpu_onnx
+
+        return export_pe_cpu_onnx(self, output_dir, size_limit_bytes=size_limit_bytes, output_name=output_name)
+
+
+class RFDETRAtto(_PECPUExportMixin, RFDETR):
     size: Literal["rfdetr-atto"] = "rfdetr-atto"
     _model_config_class = RFDETRAttoConfig
 
@@ -142,7 +188,7 @@ class RFDETRAtto(RFDETR):
         super().__init__(**kwargs)
 
 
-class RFDETRFemto(RFDETR):
+class RFDETRFemto(_PECPUExportMixin, RFDETR):
     size: Literal["rfdetr-femto"] = "rfdetr-femto"
     _model_config_class = RFDETRFemtoConfig
 
@@ -151,7 +197,7 @@ class RFDETRFemto(RFDETR):
         super().__init__(**kwargs)
 
 
-class RFDETRPico(RFDETR):
+class RFDETRPico(_PECPUExportMixin, RFDETR):
     size: Literal["rfdetr-pico"] = "rfdetr-pico"
     _model_config_class = RFDETRPicoConfig
 
