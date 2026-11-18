@@ -51,7 +51,7 @@ onnx = [
     # The traced graph is converted to ONNX opset 23 in `pe_cpu_export._upgrade_attention`.
     "onnx>=1.19,<2",
     # 1.23.2 ships Python 3.10 wheels, so it satisfies the core cap above.
-    "onnxruntime>=1.23.2,<2",
+    "onnxruntime>=1.24.3,<2",
 ]
 
 [dependency-groups]
