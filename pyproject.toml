@@ -71,12 +71,9 @@ tests = [
   "pytest-cov>=7.1.0,<8",
   "pytest-xdist>=3.8.0,<4",
   "pytest-mock>=3.17.0,<4",
-  # Use core's Python-specific ONNX Runtime wheel constraints when resolving the test environment.
+  # ONNX tooling (onnx, onnxruntime, torch floor) comes from the `onnx` extra: install with `--extra onnx`.
   # Same rfdetr floor as core `dependencies` and the `onnx` extra.
-  "rfdetr[onnx,train]>=1.12.0",
-  "onnx>=1.19,<2",
-  "onnxruntime>=1.23.2,<2",
-  "torch>=2.11",
+  "rfdetr[train]>=1.12.0",
 ]
 
 [project.urls]

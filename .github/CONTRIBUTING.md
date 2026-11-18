@@ -124,11 +124,11 @@ pip install uv
 git clone https://github.com/YOUR_USERNAME/rf-detr-plus.git
 cd rf-detr-plus
 
-# Install all development dependencies
-uv sync --all-groups
+# Install all development dependencies, including the `onnx` extra the export tests need
+uv sync --all-groups --all-extras
 
 # Or install specific dependency groups
-uv sync --group tests      # Testing dependencies only
+uv sync --group tests --extra onnx  # Testing dependencies and the ONNX tooling
 uv sync --group build      # Build tools only
 uv sync --group dev        # Development tools (pre-commit)
 ```
