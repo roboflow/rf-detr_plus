@@ -373,6 +373,7 @@ class TestCpuOnnxSizeBudget:
         assert cpu_export.path.stat().st_size < _SIZE_BUDGET
 
 
+@_requires_onnx
 def test_failed_cpu_export_preserves_previous_artifact(
     fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -435,6 +436,7 @@ class TestCpuExportSizeBoundary:
         assert path.stat().st_size == size
 
 
+@_requires_onnx
 @pytest.mark.parametrize("name", ["femto", "pico"])
 def test_cpu_export_rejects_femto_and_pico_at_the_deployment_budget(
     name: str, fake_checkpoints: dict[str, Path], tmp_path: Path

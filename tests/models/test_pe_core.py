@@ -267,6 +267,7 @@ class TestPECoreEncoder:
         assert all(block.attn.forward.__func__ is _export_attention_forward for block in exported_copy.model.blocks)
         assert all(torch.equal(a, b) for a, b in zip(eager, exported))
 
+    @_requires_onnx
     @pytest.mark.parametrize("num_windows", [1, 2])
     def test_compact_onnx_attention_matches_timm(self, num_windows: int) -> None:
         """Check the runtime's fused RoPE and attention against timm, including window and prefix ordering."""
