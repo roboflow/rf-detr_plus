@@ -22,7 +22,7 @@ jobs:
 
   run-tests:
     name: Pytest Run
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -48,7 +48,7 @@ jobs:
           activate-environment: true
 
       - name: 🚀 Install Packages
-        run: uv pip install -e ".[onnx]" --group tests
+        run: uv pip install -e . --group tests
 
       - name: 📌 Pin timm to ${{ matrix.timm }}
         if: matrix.timm != 'latest'

@@ -30,7 +30,7 @@ jobs:
     environment:
       name: test
       url: https://pypi.org/project/rfdetr-plus/
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       id-token: write
     steps:

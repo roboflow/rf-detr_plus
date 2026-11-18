@@ -21,7 +21,7 @@ jobs:
     environment:
       name: release
       url: https://pypi.org/project/rfdetr-plus/
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       id-token: write
       contents: write # Add this line
