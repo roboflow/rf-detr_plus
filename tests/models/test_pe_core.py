@@ -273,7 +273,7 @@ class TestPECoreEncoder:
         import onnx
         import onnxruntime
 
-        from rfdetr_plus.models.cpu_export import _upgrade_attention
+        from rfdetr_plus.models.pe_cpu_export import _upgrade_attention
 
         torch.manual_seed(17)
         encoder = _encoder(patch_size=20, num_windows=num_windows, grid=8).eval()

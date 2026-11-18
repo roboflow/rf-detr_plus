@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from onnx import ModelProto, TensorProto, helper, numpy_helper
 
-from rfdetr_plus.models.cpu_export import _compact_weights, _output_stem, _projector_matmuls, _share_constants
+from rfdetr_plus.models.pe_cpu_export import _compact_weights, _output_stem, _projector_matmuls, _share_constants
 from tests._markers import _requires_onnx
 
 _SIDE = 64  # a 64 x 64 weight has exactly the 4096 elements from which weights are stored compactly

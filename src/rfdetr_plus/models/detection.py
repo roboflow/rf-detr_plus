@@ -149,7 +149,7 @@ class _PECPUExportMixin:
         use dynamic INT8 and the other large filters are stored compactly (INT8 codes for Atto, FP16 for Femto and
         Pico). The file targets the ONNX Runtime CPU execution provider, uses batch one at the configured resolution
         and opset 23; the tested runtime floor is ``onnxruntime>=1.23.2``. See
-        :func:`rfdetr_plus.models.cpu_export.export_cpu_onnx` for the per-size recipe.
+        :func:`rfdetr_plus.models.pe_cpu_export.export_pe_cpu_onnx` for the per-size recipe.
 
         Args:
             output_dir: Directory the file is written to; created when missing.
@@ -174,9 +174,9 @@ class _PECPUExportMixin:
             ImportError: If ``onnx`` or ``onnxruntime`` is not installed; raised only after the checks above.
             onnx.checker.ValidationError: If the final graph fails ``onnx.checker.check_model``.
         """
-        from rfdetr_plus.models.cpu_export import export_cpu_onnx
+        from rfdetr_plus.models.pe_cpu_export import export_pe_cpu_onnx
 
-        return export_cpu_onnx(self, output_dir, size_limit_bytes=size_limit_bytes, output_name=output_name)
+        return export_pe_cpu_onnx(self, output_dir, size_limit_bytes=size_limit_bytes, output_name=output_name)
 
 
 class RFDETRAtto(_PECPUExportMixin, RFDETR):

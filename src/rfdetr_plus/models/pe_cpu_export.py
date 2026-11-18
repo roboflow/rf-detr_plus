@@ -398,7 +398,7 @@ def _select_projections(graph: GraphProto, size: str, recipe: _CPURecipe) -> lis
     return selected
 
 
-def export_cpu_onnx(
+def export_pe_cpu_onnx(
     detector: RFDETR,
     output_dir: str | Path = "output",
     *,
