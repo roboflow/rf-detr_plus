@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu-export = ["rfdetr>=1.12.1", "torch>=2.11", "onnx>=1.19,<2", "onnxruntime>=1.23.2,<2"]
+cpu-export = ["rfdetr[onnx]>=1.12.1", "torch>=2.11", "onnx>=1.19,<2", "onnxruntime>=1.23.2,<2"]
 
 [dependency-groups]
 
@@ -61,8 +61,8 @@ tests = [
   "pytest-cov>=7.1.0,<8",
   "pytest-xdist>=3.8.0,<4",
   "pytest-mock>=3.17.0,<4",
-  "rfdetr[train]",
-  # The ONNX export regression tests skip without it; rfdetr[train] does not pull it in.
+  # Use core's Python-specific ONNX Runtime wheel constraints when resolving the test environment.
+  "rfdetr[onnx,train]>=1.12.1",
   "onnx>=1.19,<2",
   "onnxruntime>=1.23.2,<2",
   "torch>=2.11",
