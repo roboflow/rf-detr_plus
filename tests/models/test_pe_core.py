@@ -457,6 +457,30 @@ class TestPECoreEncoder:
         with pytest.raises(NotImplementedError, match="is_causal"):
             _export_attention_forward(attn, x, is_causal=True)
 
+    @pytest.mark.parametrize(
+        ("kwargs", "rotate_half"),
+        [
+            pytest.param({"rope": None}, False, id="missing-rope"),
+            pytest.param({"rope": torch.randn(4, 8), "attn_mask": torch.ones(4, 4, dtype=torch.bool)}, False, id="mask"),
+            pytest.param({"rope": torch.randn(4, 8), "is_causal": True}, False, id="causal"),
+            pytest.param({"rope": torch.randn(4, 8)}, True, id="rotate-half"),
+        ],
+    )
+    def test_compact_cpu_attention_rejects_unsupported_rotary_configurations(
+        self, kwargs: dict, rotate_half: bool
+    ) -> None:
+        """The compact CPU export fuses one rotary layout only; anything else fails instead of exporting wrong math."""
+        attn = _encoder().model.blocks[0].attn
+        attn.rotate_half = rotate_half
+        x = torch.randn(1, 4, attn.qkv.in_features)
+
+        token = _CPU_EXPORT.set(True)
+        try:
+            with pytest.raises(ValueError, match="Unsupported PE rotary attention configuration"):
+                _export_attention_forward(attn, x, **kwargs)
+        finally:
+            _CPU_EXPORT.reset(token)
+
     def test_export_keeps_timm_attention_for_blocks_it_cannot_reproduce(self, caplog: pytest.LogCaptureFixture) -> None:
         """A block the export attention cannot reproduce keeps timm's forward and the export says so."""
         encoder = _encoder()
@@ -648,7 +672,6 @@ class TestPECoreBackbone:
     def test_frozen_encoder_params_are_excluded(self) -> None:
         backbone = PECoreBackbone(
             PE_CORE_T_ENCODER,
-            _CPU_EXPORT,
             out_channels=128,
             out_feature_indexes=_OUT_FEATURE_INDEXES,
             projector_scale=["P4"],

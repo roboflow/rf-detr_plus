@@ -11,7 +11,11 @@ release format (``{"model": state_dict}``), so no pretrained weights are downloa
 
 import copy
 import math
+import re
+import sys
+from collections import Counter
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import pytest
@@ -241,41 +245,132 @@ def test_inference_optimization_matches_eager_predictions(
         assert np.isfinite(optimized.confidence).all()
 
 
-@pytest.mark.parametrize("name", _SIZES)
-def test_cpu_onnx_preserves_custom_detector(name: str, fake_checkpoints: dict[str, Path], tmp_path: Path) -> None:
-    """A custom three-class checkpoint with four logits also has four box coordinates."""
-    import onnx
-    import onnxruntime
+_SIZE_BUDGET = 8_000_000
+_MIN_LOGIT_CORRELATION = 0.98
 
-    # Fine-tuned detectors can have a different resolution as well as a different head.
-    model = _load(name, fake_checkpoints[name], **({"resolution": 400} if name == "atto" else {}))
+
+class _CpuCase(NamedTuple):
+    """Per-size recipe of the compact CPU export of a fine-tuned detector."""
+
+    name: str
+    resolution: int | None
+    size_limit: int | None
+    matmul_integer: int
+
+
+class _CpuExport(NamedTuple):
+    """One shared compact export of a custom detector, with the FP32 export of the same weights."""
+
+    case: _CpuCase
+    path: Path
+    fp32_path: Path
+    resolution: int
+
+
+_ATTO_CASE = pytest.param(_CpuCase("atto", 400, _SIZE_BUDGET, 42), id="atto")
+_CPU_CASES = [
+    _ATTO_CASE,
+    pytest.param(_CpuCase("femto", None, None, 37), id="femto"),
+    pytest.param(_CpuCase("pico", None, None, 37), id="pico"),
+]
+
+
+def _custom_detector(case: _CpuCase, checkpoint: Path) -> RFDETR:
+    """A three-class detector (four logits) with a learned, non-degenerate classifier and distinct class biases."""
+    model = _load(case.name, checkpoint, **({} if case.resolution is None else {"resolution": case.resolution}))
     network = model.model.model
+    torch.manual_seed(0)
     network.reinitialize_detection_head(4)
     model.model_config.num_classes = 3
-    # A distinct learned classifier in each variant makes substitution of COCO weights observable.
     with torch.no_grad():
         for module_name, module in network.named_modules():
             if isinstance(module, torch.nn.Linear) and "class_embed" in module_name:
-                module.weight.zero_()
+                module.weight.normal_(0, 0.02)
                 module.bias.copy_(torch.tensor([2.5, -3.0, 0.25, 0.5]))
-    limit = 8_000_000 if name == "atto" else None
-    path = model.export_cpu_onnx(tmp_path, size_limit_bytes=limit)
-    if limit is not None:
-        assert path.stat().st_size < limit
-    ops = [node.op_type for node in onnx.load(path).graph.node]
-    assert ops.count("RotaryEmbedding") == 24
-    assert ops.count("Attention") == 12
-    assert ops.count("MatMulInteger") == (42 if name == "atto" else 37)
+    return model
+
+
+def _run_onnx(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Boxes and logits of a seeded random image."""
+    import onnxruntime
+
     options = onnxruntime.SessionOptions()
     options.intra_op_num_threads = 2
     session = onnxruntime.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
     input_info = session.get_inputs()[0]
-    assert input_info.shape[-2:] == [model.model_config.resolution] * 2
-    x = np.random.default_rng(42).normal(size=input_info.shape).astype(np.float32)
-    boxes, logits = session.run(["dets", "labels"], {input_info.name: x})
-    assert boxes.shape == logits.shape == (1, model.model_config.num_queries, 4)
-    assert np.isfinite(boxes).all()
-    np.testing.assert_allclose(logits, np.broadcast_to([2.5, -3.0, 0.25, 0.5], logits.shape), atol=1e-5)
+    image = np.random.default_rng(42).normal(size=input_info.shape).astype(np.float32)
+    boxes, logits = session.run(["dets", "labels"], {input_info.name: image})
+    return boxes, logits
+
+
+@pytest.fixture(scope="module")
+def cpu_export(
+    request: pytest.FixtureRequest, fake_checkpoints: dict[str, Path], tmp_path_factory: pytest.TempPathFactory
+) -> _CpuExport:
+    """One compact export (and one FP32 export of the same weights) per size, shared by every test of that size."""
+    case: _CpuCase = request.param
+    model = _custom_detector(case, fake_checkpoints[case.name])
+    root = tmp_path_factory.mktemp(f"cpu_export_{case.name}")
+    fp32_path = Path(model.export(format="onnx", output_dir=str(root / "fp32"), verbose=False))
+    path = model.export_cpu_onnx(root / "cpu", size_limit_bytes=case.size_limit)
+    return _CpuExport(case, path, fp32_path, model.model_config.resolution)
+
+
+@_requires_onnx
+@pytest.mark.parametrize("cpu_export", _CPU_CASES, indirect=True)
+class TestCpuOnnxExport:
+    """The compact CPU export of a fine-tuned detector, one concern per test."""
+
+    def test_operator_census(self, cpu_export: _CpuExport) -> None:
+        import onnx
+
+        counts = Counter(node.op_type for node in onnx.load(cpu_export.path).graph.node)
+
+        expected = {"RotaryEmbedding": 24, "Attention": 12, "MatMulInteger": cpu_export.case.matmul_integer}
+        assert {op: counts[op] for op in expected} == expected
+
+    def test_input_matches_the_configured_resolution(self, cpu_export: _CpuExport) -> None:
+        import onnxruntime
+
+        session = onnxruntime.InferenceSession(str(cpu_export.path), providers=["CPUExecutionProvider"])
+
+        assert session.get_inputs()[0].shape[-2:] == [cpu_export.resolution] * 2
+
+    def test_outputs_have_four_columns_per_query(self, cpu_export: _CpuExport) -> None:
+        boxes, logits = _run_onnx(cpu_export.path)
+
+        assert boxes.shape == logits.shape
+        assert boxes.shape[0] == 1
+        assert boxes.shape[-1] == 4
+
+    def test_outputs_are_finite(self, cpu_export: _CpuExport) -> None:
+        boxes, logits = _run_onnx(cpu_export.path)
+
+        assert np.isfinite(boxes).all()
+        assert np.isfinite(logits).all()
+
+    def test_logits_track_the_fp32_export(self, cpu_export: _CpuExport) -> None:
+        """INT8/FP16 storage and dynamic activation quantization keep the FP32 logits' pattern.
+
+        Boxes are not compared: an untrained detector saturates them at the clamp limits, where one quantization step
+        flips a coordinate, so they carry no signal. The logits of this seeded detector correlate at ~0.99 with FP32's
+        (and a mis-scaled or mis-oriented INT8 channel drops that far below the bound); the bound leaves margin for
+        CPU-to-CPU kernel differences.
+        """
+        _, fp32_logits = _run_onnx(cpu_export.fp32_path)
+        _, compact_logits = _run_onnx(cpu_export.path)
+
+        correlation = np.corrcoef(fp32_logits.ravel(), compact_logits.ravel())[0, 1]
+        assert correlation > _MIN_LOGIT_CORRELATION
+
+
+@_requires_onnx
+@pytest.mark.parametrize("cpu_export", [_ATTO_CASE], indirect=True)
+class TestCpuOnnxSizeBudget:
+    """Atto is the size that must fit the deployment budget."""
+
+    def test_size_stays_below_the_budget(self, cpu_export: _CpuExport) -> None:
+        assert cpu_export.path.stat().st_size < _SIZE_BUDGET
 
 
 def test_failed_cpu_export_preserves_previous_artifact(
@@ -300,12 +395,152 @@ def test_failed_cpu_export_preserves_previous_artifact(
     assert list(tmp_path.iterdir()) == [artifact]
 
 
-def test_cpu_export_rejects_exact_size_limit(fake_checkpoints: dict[str, Path], tmp_path: Path) -> None:
-    """Even equality exceeds a strict budget; another export cannot displace a previous artifact on failure."""
+@_requires_onnx
+@pytest.mark.parametrize("cpu_export", [_ATTO_CASE], indirect=True)
+class TestCpuExportSizeBoundary:
+    """``size_limit_bytes`` is strict: the file must be smaller than the limit, and a failure keeps the old artifact."""
+
+    def test_limit_equal_to_the_size_is_rejected(
+        self, cpu_export: _CpuExport, fake_checkpoints: dict[str, Path], tmp_path: Path
+    ) -> None:
+        size = cpu_export.path.stat().st_size
+        model = _custom_detector(cpu_export.case, fake_checkpoints["atto"])
+
+        with pytest.raises(ValueError, match=f"must be smaller than {size} bytes"):
+            model.export_cpu_onnx(tmp_path, size_limit_bytes=size)
+
+    def test_rejection_after_quantization_keeps_the_previous_artifact_and_leaves_no_workspace(
+        self, cpu_export: _CpuExport, fake_checkpoints: dict[str, Path], tmp_path: Path
+    ) -> None:
+        artifact = tmp_path / "rfdetr-atto-cpu.onnx"
+        artifact.write_bytes(b"previous")
+        model = _custom_detector(cpu_export.case, fake_checkpoints["atto"])
+
+        with pytest.raises(ValueError, match="must be smaller than"):
+            model.export_cpu_onnx(tmp_path, size_limit_bytes=cpu_export.path.stat().st_size)
+
+        assert list(tmp_path.iterdir()) == [artifact]
+        assert artifact.read_bytes() == b"previous"
+
+    @pytest.mark.parametrize("as_limit", [int, np.int64])
+    def test_limit_one_byte_above_the_size_is_accepted_and_replaces_the_previous_artifact(
+        self, as_limit: type, cpu_export: _CpuExport, fake_checkpoints: dict[str, Path], tmp_path: Path
+    ) -> None:
+        size = cpu_export.path.stat().st_size
+        (tmp_path / "rfdetr-atto-cpu.onnx").write_bytes(b"previous")
+        model = _custom_detector(cpu_export.case, fake_checkpoints["atto"])
+
+        path = model.export_cpu_onnx(tmp_path, size_limit_bytes=as_limit(size + 1))
+
+        assert path.stat().st_size == size
+
+
+@pytest.mark.parametrize("name", ["femto", "pico"])
+def test_cpu_export_rejects_femto_and_pico_at_the_deployment_budget(
+    name: str, fake_checkpoints: dict[str, Path], tmp_path: Path
+) -> None:
+    """Only Atto fits 8,000,000 bytes; the larger sizes fail loudly instead of writing an over-budget file."""
+    model = _load(name, fake_checkpoints[name])
+
+    with pytest.raises(ValueError, match=f"must be smaller than {_SIZE_BUDGET} bytes"):
+        model.export_cpu_onnx(tmp_path, size_limit_bytes=_SIZE_BUDGET)
+
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("size_limit", [True, 1.5, 8_000_000.0, "8000000"])
+def test_cpu_export_rejects_a_non_integer_size_limit_before_writing(
+    size_limit: object, fake_checkpoints: dict[str, Path], tmp_path: Path
+) -> None:
     model = _load("atto", fake_checkpoints["atto"])
-    artifact = model.export_cpu_onnx(tmp_path)
-    size = artifact.stat().st_size
-    artifact.write_bytes(b"previous")
-    with pytest.raises(ValueError, match=f"must be smaller than {size} bytes"):
-        model.export_cpu_onnx(tmp_path, size_limit_bytes=size)
-    assert artifact.read_bytes() == b"previous"
+
+    with pytest.raises(TypeError):
+        model.export_cpu_onnx(tmp_path, size_limit_bytes=size_limit)
+
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("size_limit", [0, -1])
+def test_cpu_export_rejects_a_non_positive_size_limit_before_writing(
+    size_limit: int, fake_checkpoints: dict[str, Path], tmp_path: Path
+) -> None:
+    model = _load("atto", fake_checkpoints["atto"])
+
+    with pytest.raises(ValueError, match="positive"):
+        model.export_cpu_onnx(tmp_path, size_limit_bytes=size_limit)
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def _traced_graph_export(attention_nodes: int, matmul_names: list[str]):
+    """A stand-in for ``RFDETR.export`` that writes a tiny opset-23 graph with the given operator inventory."""
+
+    def export(*, output_dir: str, **kwargs: object) -> str:
+        import onnx
+        from onnx import TensorProto, helper
+
+        nodes = [helper.make_node("Attention", ["x", "x", "x"], [f"a{i}"]) for i in range(attention_nodes)]
+        nodes += [helper.make_node("MatMul", ["x", "x"], [f"m{i}"], name=name) for i, name in enumerate(matmul_names)]
+        outputs = [helper.make_tensor_value_info(node.output[0], TensorProto.FLOAT, [2, 2]) for node in nodes]
+        graph = helper.make_graph(
+            nodes, "traced", [helper.make_tensor_value_info("x", TensorProto.FLOAT, [2, 2])], outputs
+        )
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 23)], ir_version=10)
+        path = Path(output_dir) / "traced.onnx"
+        onnx.save(model, path)
+        return str(path)
+
+    return export
+
+
+_ENCODER_PROJECTIONS = [
+    f"/encoder/blocks.{block}/{projection}/MatMul"
+    for block in range(12)
+    for projection in ("attn/qkv", "attn/proj", "mlp/fc1")
+]
+
+
+@_requires_onnx
+class TestCpuExportGraphGuards:
+    """The export refuses a traced graph whose operator inventory differs from the recipe, before quantizing."""
+
+    def test_missing_fused_attention_operators_are_rejected(
+        self, fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        model = _load("femto", fake_checkpoints["femto"])
+        monkeypatch.setattr(model, "export", _traced_graph_export(0, _ENCODER_PROJECTIONS))
+
+        with pytest.raises(ValueError, match="Expected one fused attention operator in each PE block"):
+            model.export_cpu_onnx(tmp_path)
+
+    def test_missing_encoder_projections_are_rejected(
+        self, fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        model = _load("femto", fake_checkpoints["femto"])
+        monkeypatch.setattr(model, "export", _traced_graph_export(12, []))
+
+        with pytest.raises(ValueError, match="Expected three encoder projections in each of twelve PE blocks, found 0"):
+            model.export_cpu_onnx(tmp_path)
+
+    @pytest.mark.parametrize(("name", "expected"), [("atto", 42), ("femto", 37), ("pico", 37)])
+    def test_missing_size_specific_projections_are_rejected(
+        self, name: str, expected: int, fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        model = _load(name, fake_checkpoints[name])
+        monkeypatch.setattr(model, "export", _traced_graph_export(12, _ENCODER_PROJECTIONS))
+
+        with pytest.raises(ValueError, match=f"Expected {expected} linear projections for rfdetr-{name}, found 36"):
+            model.export_cpu_onnx(tmp_path)
+
+
+@pytest.mark.parametrize("missing", ["onnx", "onnxruntime.quantization"])
+def test_cpu_export_names_the_extra_when_an_optional_dependency_is_missing(
+    missing: str, fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = _load("atto", fake_checkpoints["atto"])
+    monkeypatch.setitem(sys.modules, missing, None)
+
+    with pytest.raises(ImportError, match=re.escape('pip install "rfdetr-plus[onnx]"')):
+        model.export_cpu_onnx(tmp_path)
+
+
