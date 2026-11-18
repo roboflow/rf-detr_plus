@@ -461,7 +461,9 @@ class TestPECoreEncoder:
         ("kwargs", "rotate_half"),
         [
             pytest.param({"rope": None}, False, id="missing-rope"),
-            pytest.param({"rope": torch.randn(4, 8), "attn_mask": torch.ones(4, 4, dtype=torch.bool)}, False, id="mask"),
+            pytest.param(
+                {"rope": torch.randn(4, 8), "attn_mask": torch.ones(4, 4, dtype=torch.bool)}, False, id="mask"
+            ),
             pytest.param({"rope": torch.randn(4, 8), "is_causal": True}, False, id="causal"),
             pytest.param({"rope": torch.randn(4, 8)}, True, id="rotate-half"),
         ],

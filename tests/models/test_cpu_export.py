@@ -46,7 +46,7 @@ def _matmul_model(weight: np.ndarray, node_name: str = _MATMUL_NAME) -> ModelPro
 
 
 def _conv_weight_model(weight: np.ndarray) -> ModelProto:
-    """A pointwise Conv with weight ``[_SIDE, _SIDE, 1, 1]``; feeding the identity as a batch reads ``weight.T`` back."""
+    """Pointwise Conv with weight ``[_SIDE, _SIDE, 1, 1]``; feeding the identity as a batch reads ``weight.T`` back."""
     node = helper.make_node("Conv", ["x", "w"], ["y"], name="/decoder/layers.0/Conv")
     return _model(
         [node],

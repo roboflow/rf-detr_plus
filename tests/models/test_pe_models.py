@@ -524,7 +524,12 @@ class TestCpuExportGraphGuards:
 
     @pytest.mark.parametrize(("name", "expected"), [("atto", 42), ("femto", 37), ("pico", 37)])
     def test_missing_size_specific_projections_are_rejected(
-        self, name: str, expected: int, fake_checkpoints: dict[str, Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        name: str,
+        expected: int,
+        fake_checkpoints: dict[str, Path],
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         model = _load(name, fake_checkpoints[name])
         monkeypatch.setattr(model, "export", _traced_graph_export(12, _ENCODER_PROJECTIONS))
@@ -542,5 +547,3 @@ def test_cpu_export_names_the_extra_when_an_optional_dependency_is_missing(
 
     with pytest.raises(ImportError, match=re.escape('pip install "rfdetr-plus[onnx]"')):
         model.export_cpu_onnx(tmp_path)
-
-
