@@ -84,7 +84,7 @@ model.train(dataset_dir="path/to/dataset", epochs=50, lr=1e-4)
 
 ### Export Atto, Femto or Pico for CPU
 
-Install `pip install "rfdetr-plus[cpu-export]"`. The compact ONNX export uses batch size one at the detector's configured resolution and targets the standard encoder and decoder layout for each size. It derives its weights from the loaded model and computes activation scales at inference time.
+Install `pip install "rfdetr-plus[onnx]"`. The compact ONNX export uses batch size one at the detector's configured resolution and targets the standard encoder and decoder layout for each size. It derives its weights from the loaded model and computes activation scales at inference time.
 
 ```python
 from rfdetr import RFDETRInference, from_checkpoint
@@ -101,7 +101,15 @@ predictions = RFDETRInference(artifact, device="cpu").predict("image.jpg")
 
 The optional `size_limit_bytes` checks the complete uncompressed file before publishing the artifact. The call raises `ValueError` if the file reaches or exceeds that limit. The reference Femto and Pico CPU exports are 11.77 MB and 13.10 MB respectively.
 
-The encoder uses fused rotary and attention operators and selected INT8 matrix multiplications. Atto also stores large remaining filters as scaled INT8. Femto and Pico use FP16 storage for those filters. Compare the compact export with `model.export(format="onnx")` on your validation images and target CPU to measure the accuracy and latency trade-off.
+The encoder uses fused rotary and attention operators. Every size quantizes the 36 encoder projections (`qkv`, `proj` and `fc1` of all twelve blocks) to dynamic INT8, and each size adds its own recipe on top:
+
+- Atto: `fc2` of encoder blocks 6-11 also uses dynamic INT8, the 1x1 projector convolutions become float NHWC matrix multiplications, and the remaining large filters are stored as scaled INT8.
+- Femto: `linear2` of decoder `layers.1` also uses dynamic INT8, and the remaining large filters are stored in FP16.
+- Pico: `linear1` of decoder `layers.1` also uses dynamic INT8, the 1x1 projector convolutions become float NHWC matrix multiplications, and the remaining large filters are stored in FP16.
+
+The export fails before tracing for any other size, for a non-PE-Core-T encoder, and for Femto or Pico with fewer than two decoder layers. The file uses ONNX opset 23, so run it with `onnxruntime>=1.23.2`, the tested floor.
+
+This differs from the base `model.export(format="onnx", quantization="int8")`, which writes a static QDQ model with INT8 weights and activations and requires `calibration_data`. The compact export needs no calibration data. `output_name` follows the base full-stem semantics: the file is `{output_name}.onnx`, and the default is `{size}-cpu`. Compare the compact export with `model.export(format="onnx")` on your validation images and target CPU to measure the accuracy and latency trade-off.
 
 ## Documentation
 
