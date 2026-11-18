@@ -47,7 +47,7 @@ onnx = [
     # Same floor as core `dependencies`: the 1.12.1 changes (batched prediction, early config and input validation) do
     # not touch the export path. The `onnx` extra adds core's per-Python ONNX Runtime cap (below 1.24 on Python 3.10).
     "rfdetr[onnx]>=1.12.0",
-    "torch>=2.11",
+    "torch>=2.14.1",
     # The traced graph is converted to ONNX opset 23 in `pe_cpu_export._upgrade_attention`.
     "onnx>=1.19,<2",
     # 1.23.2 ships Python 3.10 wheels, so it satisfies the core cap above.
