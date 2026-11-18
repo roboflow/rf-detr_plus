@@ -48,7 +48,7 @@ jobs:
           activate-environment: true
 
       - name: 🚀 Install Packages
-        run: uv pip install -e . --group tests
+        run: uv pip install -e ".[onnx]" --group tests
 
       - name: 📌 Pin timm to ${{ matrix.timm }}
         if: matrix.timm != 'latest'
