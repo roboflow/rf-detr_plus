@@ -109,7 +109,7 @@ The encoder uses fused rotary and attention operators. Every size quantizes the 
 
 The export fails before tracing for any other size, for a non-PE-Core-T encoder, and for Femto or Pico with fewer than two decoder layers. The file uses ONNX opset 23, so run it with `onnxruntime>=1.23.2`, the tested floor.
 
-This differs from the base `model.export(format="onnx", quantization="int8")`, which writes a static QDQ model with INT8 weights and activations and requires `calibration_data`. The compact export needs no calibration data. `output_name` follows the base full-stem semantics: the file is `{output_name}.onnx`, and the default is `{size}-cpu`. Compare the compact export with `model.export(format="onnx")` on your validation images and target CPU to measure the accuracy and latency trade-off.
+This differs from the base `model.export(format="onnx", quantization="int8")`, which writes a static QDQ model with INT8 weights and activations and requires `calibration_data`. The compact export needs no calibration data. `output_name` follows the base full-stem semantics: the file is `{output_name}.onnx`, and the default is the model's size name plus `-cpu`, such as `rfdetr-atto-cpu.onnx`. Compare the compact export with `model.export(format="onnx")` on your validation images and target CPU to measure the accuracy and latency trade-off.
 
 ## Documentation
 
