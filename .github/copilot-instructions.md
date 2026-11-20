@@ -28,7 +28,7 @@ RF-DETR+ is an extension package providing XLarge and 2XLarge (DINOv2) and Atto,
 uv sync --all-groups --all-extras
 
 # Run tests (always before committing)
-uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus --cov-report=xml
+uv run --no-sync pytest src/ tests/ -m "not gpu and not quantization" --cov=rfdetr_plus --cov-report=xml
 
 # Build package
 uv build
@@ -115,7 +115,7 @@ from rfdetr_plus.models.detection import RFDETRXLarge, RFDETR2XLarge
 
 Before submitting changes:
 
-1. ✅ Run tests: `uv run --no-sync pytest src/ tests/ -m "not gpu"`
+1. ✅ Run tests: `uv run --no-sync pytest src/ tests/ -m "not gpu and not quantization"`
 2. ✅ Run pre-commit: `pre-commit run --all-files`
 3. ✅ Verify new functions have type hints + docstrings
 4. ✅ Review changes for minimal scope

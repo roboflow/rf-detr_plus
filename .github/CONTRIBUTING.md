@@ -158,7 +158,7 @@ See `pyproject.toml` for complete dependency specifications.
 
 ```bash
 # Run CPU tests (default for local development)
-uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus --cov-report=xml
+uv run --no-sync pytest src/ tests/ -m "not gpu and not quantization" --cov=rfdetr_plus --cov-report=xml
 
 # Run GPU tests (requires GPU)
 uv run --no-sync pytest src/ tests/ -m gpu
@@ -302,8 +302,9 @@ Our continuous integration tests run on:
 
 - **Operating Systems:** Ubuntu, Windows, macOS
 - **Python Versions:** 3.10, 3.11, 3.12, 3.13
-- **CPU Workflow:** `pytest -m "not gpu"` - Runs on all OS/Python combinations
+- **CPU Workflow:** `pytest -m "not gpu and not quantization"` - Runs on all OS/Python combinations
 - **GPU Workflow:** `pytest -m gpu` - Runs separately on GPU infrastructure
+- **Quantization Workflow:** `pytest -m quantization` - Accuracy drop of the quantized exports on COCO val2017; runs separately on one CPU runner
 
 This ensures your changes work across all supported platforms and Python versions.
 
@@ -311,7 +312,7 @@ This ensures your changes work across all supported platforms and Python version
 
 ```bash
 # Run tests with coverage (recommended)
-uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus
+uv run --no-sync pytest src/ tests/ -m "not gpu and not quantization" --cov=rfdetr_plus
 
 # Run a specific test file
 uv run --no-sync pytest tests/models/test_config.py
