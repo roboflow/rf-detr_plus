@@ -41,11 +41,12 @@ jobs:
       - name: 🚀 Install Packages
         run: uv pip install -e ".[onnx]" --group tests
 
-      # The `download_coco_val` fixture fetches COCO val2017 (about 1 GB) into `data/` when it is missing.
+      # The `download_coco_val` fixture fetches COCO val2017 (about 1 GB) into `data/` beside the checkout
+      # (`parents[2]` of `tests/conftest.py`, so `../data` from the workspace) when it is missing.
       - name: 💾 Cache COCO val2017
         uses: actions/cache@v6
         with:
-          path: data
+          path: ../data
           key: coco-val2017-v1
 
       - name: 🧪 Run the Quantization Tests
