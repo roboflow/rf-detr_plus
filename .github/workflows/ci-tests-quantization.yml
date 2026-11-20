@@ -45,7 +45,7 @@ jobs:
       - name: 💾 Cache COCO val2017
         uses: actions/cache@v6
         with:
-          path: data
+          path: ../data
           key: coco-val2017-v1
 
       - name: 🧪 Run the Quantization Tests
