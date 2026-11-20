@@ -125,6 +125,7 @@ addopts = [
 ]
 markers = [
     "gpu: tests that require GPU or are slow on CPU",
+    "quantization: accuracy-drop tests of quantized exports; download COCO val2017 and weights, run in their own CI job",
 ]
 
 [tool.codespell]

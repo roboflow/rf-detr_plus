@@ -87,10 +87,13 @@ See `pyproject.toml` for complete dependency specifications:
 
 ```bash
 # CPU tests (default for local development) - matches CI
-uv run --no-sync pytest src/ tests/ -m "not gpu" --cov=rfdetr_plus --cov-report=xml
+uv run --no-sync pytest src/ tests/ -m "not gpu and not quantization" --cov=rfdetr_plus --cov-report=xml
 
 # GPU tests (requires GPU)
 uv run --no-sync pytest src/ tests/ -m gpu
+
+# Quantization accuracy-drop tests (download COCO val2017 and weights, several minutes on CPU)
+uv run --no-sync pytest tests/ -m quantization -s
 
 # Pre-commit checks (ALWAYS run before committing)
 pre-commit run --all-files
@@ -213,7 +216,7 @@ uv run twine check --strict dist/*
 4. **Testing:**
     - Bug fixes: Write test first, then fix
     - Features: Test all major use cases
-    - Run: `uv run --no-sync pytest src/ tests/ -m "not gpu"`
+    - Run: `uv run --no-sync pytest src/ tests/ -m "not gpu and not quantization"`
 5. **Quality checks:** `pre-commit run --all-files`
 6. **Build (if needed):** `uv build`
 7. **Commit:** Pre-commit hooks run automatically
@@ -223,6 +226,7 @@ uv run twine check --strict dist/*
 GitHub Actions workflows in `.github/workflows/`:
 
 - **Tests:** CPU and GPU test workflows across OS/Python versions
+- **Quantization:** `ci-tests-quantization.yml` runs the `quantization`-marked accuracy-drop tests on one CPU runner
 - **Build:** Package building and validation
 - **Publishing:** Release automation
 

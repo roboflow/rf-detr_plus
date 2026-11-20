@@ -1,0 +1,56 @@
+name: Pytest/Quantization Workflow
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_TORCH_BACKEND: "cpu"
+
+concurrency:
+  group: pytest-quantization-test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  run-quantization-tests:
+    name: Accuracy drop of quantized exports
+    if: github.event_name == 'push' || !github.event.pull_request.draft
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout the repository
+        uses: actions/checkout@v7
+
+      - name: 🐍 Install uv and set Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          activate-environment: true
+
+      - name: 🚀 Install Packages
+        run: uv pip install -e ".[onnx]" --group tests
+
+      # The `download_coco_val` fixture fetches COCO val2017 (about 1 GB) into `data/` beside the checkout
+      # (`parents[2]` of `tests/conftest.py`, so `../data` from the workspace) when it is missing.
+      - name: 💾 Cache COCO val2017
+        uses: actions/cache@v6
+        with:
+          path: ../data
+          key: coco-val2017-v1
+
+      - name: 🧪 Run the Quantization Tests
+        run: pytest tests/ -m quantization -s
+
+      - name: 🧹 Minimize uv cache
+        run: uv cache prune --ci

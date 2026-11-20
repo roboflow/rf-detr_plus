@@ -55,7 +55,7 @@ jobs:
         run: uv pip install "timm==${{ matrix.timm }}"
 
       - name: 🧪 Run the Test
-        run: pytest -m "not gpu" --cov=rfdetr_plus --cov-report=xml
+        run: pytest -m "not gpu and not quantization" --cov=rfdetr_plus --cov-report=xml
 
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v7
